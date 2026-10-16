@@ -20,7 +20,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // DB Context
 builder.Services.AddDbContext<RestaurantDB>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();

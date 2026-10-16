@@ -13,18 +13,12 @@ namespace RestaurantDAL.Repositories
 
         Task<List<Reservation>> GetByUserWithDetailsAsync(string userId);
 
-        /// <summary>Tables that fit <paramref name="guestCount"/> and have no confirmed reservation overlapping [start, end).</summary>
         Task<List<Table>> GetAvailableTablesAsync(DateTimeOffset start, DateTimeOffset end, int guestCount);
 
-        /// <summary>True when the table still has confirmed reservations that have not ended yet.</summary>
         Task<bool> HasUpcomingReservationsAsync(int tableId);
 
-        /// <summary>
-        /// Checks for an overlapping confirmed reservation and inserts the new one in the same
-        /// serializable transaction, so two guests can never book the same table at the same time.
-        /// Returns false when the slot is already taken.
-        /// </summary>
-        Task<bool> TryAddAsync(Reservation reservation);
+
+        Task<bool> TryAddAsync(Reservation reservation, CancellationToken cancellationToken = default);
 
         Task SetStatusAsync(Reservation reservation, ReservationStatus status);
     }
@@ -93,25 +87,27 @@ namespace RestaurantDAL.Repositories
                 r.EndTime > now);
         }
 
-        public async Task<bool> TryAddAsync(Reservation reservation)
+        public async Task<bool> TryAddAsync(Reservation reservation, CancellationToken cancellationToken = default)
         {
-            await using var transaction = await _context.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
+            await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+
+            await _context.Database.ExecuteSqlRawAsync("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;", cancellationToken);
 
             var hasOverlap = await _dbSet.AnyAsync(r =>
                 r.TableId == reservation.TableId &&
                 r.Status == ReservationStatus.Confirmed &&
                 r.StartTime < reservation.EndTime &&
-                r.EndTime > reservation.StartTime);
+                r.EndTime > reservation.StartTime, cancellationToken);
 
             if (hasOverlap)
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 return false;
             }
 
-            await _dbSet.AddAsync(reservation);
-            await _context.SaveChangesAsync();
-            await transaction.CommitAsync();
+            await _dbSet.AddAsync(reservation, cancellationToken);
+            await _context.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
             return true;
         }
 
