@@ -18,17 +18,64 @@ using ProductRepository = RestaurantDAL.Repositories.ProductRepository;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Railway provides the port in the PORT variable.
 var railwayPort = Environment.GetEnvironmentVariable("PORT");
 if (!string.IsNullOrWhiteSpace(railwayPort))
 {
     builder.WebHost.UseUrls($"http://0.0.0.0:{railwayPort}");
 }
 
+// ---------------------------------------------------------------------------
+// Database connection string (no secrets in code). Order of precedence:
+//   1. DATABASE_URL            e.g. postgresql://user:pass@host:port/db   (Railway)
+//   2. PGHOST, PGDATABASE, PGUSER, PGPASSWORD (+ optional PGPORT)
+//   3. ConnectionStrings:DefaultConnection (appsettings.json, local development)
+// ---------------------------------------------------------------------------
+static string Quote(string value) => "\"" + value.Replace("\"", "\"\"") + "\"";
 
-var connectionString = "Host=postgres.railway.internal;Port=5432;Database=railway;Username=postgres;Password=wsgxTfxeLWxiLdhHqecZmPEcrAdZlKkO";
+static string? ResolveConnectionString(IConfiguration configuration)
+{
+    var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
+    if (!string.IsNullOrWhiteSpace(databaseUrl) &&
+        Uri.TryCreate(databaseUrl, UriKind.Absolute, out var uri))
+    {
+        var userInfo = uri.UserInfo.Split(':', 2);
+        var user = Uri.UnescapeDataString(userInfo[0]);
+        var password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : "";
+        var port = uri.Port > 0 ? uri.Port : 5432;
+        var database = uri.AbsolutePath.TrimStart('/');
 
-builder.Services.AddDbContext<RestaurantDB>(options =>
-    options.UseNpgsql(connectionString));
+        return $"Host={Quote(uri.Host)};Port={port};Database={Quote(database)};" +
+               $"Username={Quote(user)};Password={Quote(password)};" +
+               "SSL Mode=Prefer;Trust Server Certificate=true";
+    }
+
+    var host = Environment.GetEnvironmentVariable("PGHOST");
+    var db = Environment.GetEnvironmentVariable("PGDATABASE");
+    var pgUser = Environment.GetEnvironmentVariable("PGUSER");
+    var pgPassword = Environment.GetEnvironmentVariable("PGPASSWORD");
+    var pgPort = Environment.GetEnvironmentVariable("PGPORT");
+
+    if (!string.IsNullOrWhiteSpace(host) &&
+        !string.IsNullOrWhiteSpace(db) &&
+        !string.IsNullOrWhiteSpace(pgUser))
+    {
+        return $"Host={Quote(host)};Port={(string.IsNullOrWhiteSpace(pgPort) ? "5432" : pgPort)};" +
+               $"Database={Quote(db)};Username={Quote(pgUser)};Password={Quote(pgPassword ?? "")};" +
+               "SSL Mode=Prefer;Trust Server Certificate=true";
+    }
+
+    return configuration.GetConnectionString("DefaultConnection");
+}
+
+var connectionString = ResolveConnectionString(builder.Configuration);
+
+if (string.IsNullOrWhiteSpace(connectionString))
+{
+    throw new InvalidOperationException(
+        "PostgreSQL configuration is missing. Set the DATABASE_URL variable " +
+        "(or PGHOST, PGDATABASE, PGUSER, PGPASSWORD) on the API service.");
+}
 
 builder.Services.AddDbContext<RestaurantDB>(options =>
     options.UseNpgsql(connectionString));
@@ -69,14 +116,24 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 .AddEntityFrameworkStores<RestaurantDB>()
 .AddDefaultTokenProviders();
 
-// JWT Configuration with safe Fallbacks
-var jwtKey = builder.Configuration["Jwt:Key"] ?? Environment.GetEnvironmentVariable("Jwt__Key") ?? "SuperSecretRestaurantApiJwtKeyThatIsAtLeast32BytesLong!";
-var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? Environment.GetEnvironmentVariable("Jwt__Issuer") ?? "RestaurantAPI";
-var jwtAudience = builder.Configuration["Jwt:Audience"] ?? Environment.GetEnvironmentVariable("Jwt__Audience") ?? "RestaurantClient";
+// JWT Configuration
+// Production: set Jwt__Key (min. 32 characters) as a Railway variable.
+// A development-only fallback is used when running locally.
+var jwtKey = builder.Configuration["Jwt:Key"];
+var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "RestaurantAPI";
+var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "RestaurantClient";
 
-if (Encoding.UTF8.GetByteCount(jwtKey) < 32)
+if (string.IsNullOrWhiteSpace(jwtKey) || Encoding.UTF8.GetByteCount(jwtKey) < 32)
 {
-    jwtKey = "SuperSecretRestaurantApiJwtKeyThatIsAtLeast32BytesLong!";
+    if (builder.Environment.IsDevelopment())
+    {
+        jwtKey = "DevOnly_RestaurantApi_JwtKey_Change_Me_1234567890!";
+    }
+    else
+    {
+        throw new InvalidOperationException(
+            "Jwt:Key is missing or shorter than 32 bytes. Set the Jwt__Key variable.");
+    }
 }
 
 builder.Services.AddAuthentication(options =>
