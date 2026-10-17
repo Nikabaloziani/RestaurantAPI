@@ -19,14 +19,54 @@ using ProductRepository = RestaurantDAL.Repositories.ProductRepository;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Database connection: read from configuration or environment variables.
+// Database connection: appsettings.json / Railway environment variables.
 var connectionString =
     builder.Configuration.GetConnectionString("DefaultConnection");
 
 if (string.IsNullOrWhiteSpace(connectionString))
 {
-    throw new InvalidOperationException(
-        "ConnectionStrings:DefaultConnection is not configured.");
+    var host = builder.Configuration["PGHOST"];
+    var portText = builder.Configuration["PGPORT"];
+    var database = builder.Configuration["PGDATABASE"];
+    var username = builder.Configuration["PGUSER"];
+    var password = builder.Configuration["PGPASSWORD"];
+
+    var missingVariables = new List<string>();
+
+    if (string.IsNullOrWhiteSpace(host))
+        missingVariables.Add("PGHOST");
+
+    if (string.IsNullOrWhiteSpace(database))
+        missingVariables.Add("PGDATABASE");
+
+    if (string.IsNullOrWhiteSpace(username))
+        missingVariables.Add("PGUSER");
+
+    if (string.IsNullOrWhiteSpace(password))
+        missingVariables.Add("PGPASSWORD");
+
+    if (missingVariables.Count > 0)
+    {
+        throw new InvalidOperationException(
+            "PostgreSQL configuration is missing. Set " +
+            "ConnectionStrings__DefaultConnection or configure these " +
+            "environment variables on the API service: " +
+            string.Join(", ", missingVariables));
+    }
+
+    var port = int.TryParse(portText, out var parsedPort)
+        ? parsedPort
+        : 5432;
+
+    connectionString =
+        new Npgsql.NpgsqlConnectionStringBuilder
+        {
+            Host = host!,
+            Port = port,
+            Database = database!,
+            Username = username!,
+            Password = password!
+        }.ConnectionString;
 }
 
 builder.Services.AddDbContext<RestaurantDB>(options =>
