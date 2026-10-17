@@ -1,4 +1,3 @@
-
 using AutoMapper;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -19,54 +18,63 @@ using ProductRepository = RestaurantDAL.Repositories.ProductRepository;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Database connection: appsettings.json / Railway environment variables.
-var connectionString =
-    builder.Configuration.GetConnectionString("DefaultConnection");
+
+var railwayPort = Environment.GetEnvironmentVariable("PORT");
+if (!string.IsNullOrWhiteSpace(railwayPort))
+{
+    builder.WebHost.UseUrls($"http://0.0.0.0:{railwayPort}");
+}
+
+
+static string Quote(string value) => "\"" + value.Replace("\"", "\"\"") + "\"";
+
+static string? ResolveConnectionString(IConfiguration configuration)
+{
+    var direct = configuration.GetConnectionString("DefaultConnection");
+    if (!string.IsNullOrWhiteSpace(direct))
+    {
+        return direct;
+    }
+
+    var databaseUrl = Environment.GetEnvironmentVariable("${{ Postgres.DATABASE_PRIVATE_URL }}");
+    if (!string.IsNullOrWhiteSpace(databaseUrl) &&
+        Uri.TryCreate(databaseUrl, UriKind.Absolute, out var uri))
+    {
+        var userInfo = uri.UserInfo.Split(':', 2);
+        var user = Uri.UnescapeDataString(userInfo[0]);
+        var password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : "";
+        var port = uri.Port > 0 ? uri.Port : 5432;
+        var database = uri.AbsolutePath.TrimStart('/');
+
+        return $"Host={Quote(uri.Host)};Port={port};Database={Quote(database)};" +
+               $"Username={Quote(user)};Password={Quote(password)}";
+    }
+
+    var host = Environment.GetEnvironmentVariable("PGHOST");
+    var db = Environment.GetEnvironmentVariable("PGDATABASE");
+    var pgUser = Environment.GetEnvironmentVariable("PGUSER");
+    var pgPassword = Environment.GetEnvironmentVariable("PGPASSWORD");
+    var pgPort = Environment.GetEnvironmentVariable("PGPORT");
+
+    if (!string.IsNullOrWhiteSpace(host) &&
+        !string.IsNullOrWhiteSpace(db) &&
+        !string.IsNullOrWhiteSpace(pgUser))
+    {
+        return $"Host={Quote(host)};Port={(string.IsNullOrWhiteSpace(pgPort) ? "5432" : pgPort)};" +
+               $"Database={Quote(db)};Username={Quote(pgUser)};Password={Quote(pgPassword ?? "")}";
+    }
+
+    return null;
+}
+
+var connectionString = ResolveConnectionString(builder.Configuration);
 
 if (string.IsNullOrWhiteSpace(connectionString))
 {
-    var host = builder.Configuration["PGHOST"];
-    var portText = builder.Configuration["PGPORT"];
-    var database = builder.Configuration["PGDATABASE"];
-    var username = builder.Configuration["PGUSER"];
-    var password = builder.Configuration["PGPASSWORD"];
-
-    var missingVariables = new List<string>();
-
-    if (string.IsNullOrWhiteSpace(host))
-        missingVariables.Add("PGHOST");
-
-    if (string.IsNullOrWhiteSpace(database))
-        missingVariables.Add("PGDATABASE");
-
-    if (string.IsNullOrWhiteSpace(username))
-        missingVariables.Add("PGUSER");
-
-    if (string.IsNullOrWhiteSpace(password))
-        missingVariables.Add("PGPASSWORD");
-
-    if (missingVariables.Count > 0)
-    {
-        throw new InvalidOperationException(
-            "PostgreSQL configuration is missing. Set " +
-            "ConnectionStrings__DefaultConnection or configure these " +
-            "environment variables on the API service: " +
-            string.Join(", ", missingVariables));
-    }
-
-    var port = int.TryParse(portText, out var parsedPort)
-        ? parsedPort
-        : 5432;
-
-    connectionString =
-        new Npgsql.NpgsqlConnectionStringBuilder
-        {
-            Host = host!,
-            Port = port,
-            Database = database!,
-            Username = username!,
-            Password = password!
-        }.ConnectionString;
+    throw new InvalidOperationException(
+        "PostgreSQL configuration is missing. Set ConnectionStrings__DefaultConnection, " +
+        "or DATABASE_URL, or these environment variables on the API service: " +
+        "PGHOST, PGDATABASE, PGUSER, PGPASSWORD");
 }
 
 builder.Services.AddDbContext<RestaurantDB>(options =>
@@ -111,6 +119,7 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 .AddDefaultTokenProviders();
 
 // JWT Configuration
+// On Railway set: Jwt__Key, Jwt__Issuer, Jwt__Audience
 var jwtKey = builder.Configuration["Jwt:Key"];
 var jwtIssuer = builder.Configuration["Jwt:Issuer"];
 var jwtAudience = builder.Configuration["Jwt:Audience"];
@@ -118,7 +127,7 @@ var jwtAudience = builder.Configuration["Jwt:Audience"];
 if (string.IsNullOrWhiteSpace(jwtKey))
 {
     throw new InvalidOperationException(
-        "Jwt:Key is not configured.");
+        "Jwt:Key is not configured. Set the Jwt__Key environment variable.");
 }
 
 if (Encoding.UTF8.GetByteCount(jwtKey) < 32)
@@ -131,7 +140,8 @@ if (string.IsNullOrWhiteSpace(jwtIssuer) ||
     string.IsNullOrWhiteSpace(jwtAudience))
 {
     throw new InvalidOperationException(
-        "Jwt:Issuer and Jwt:Audience must be configured.");
+        "Jwt:Issuer and Jwt:Audience must be configured. " +
+        "Set the Jwt__Issuer and Jwt__Audience environment variables.");
 }
 
 builder.Services.AddAuthentication(options =>
@@ -191,6 +201,7 @@ builder.Services.AddScoped<IReportService, ReportService>();
 
 var app = builder.Build();
 
+// Apply migrations and seed roles/admin on startup.
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -202,17 +213,22 @@ using (var scope = app.Services.CreateScope())
     await DataSeeder.SeedRolesAndAdminAsync(services);
 }
 
-// Swagger
+// Swagger is enabled in every environment so the API can be demonstrated
+// on Railway (the default environment there is Production).
+app.UseSwagger();
+app.UseSwaggerUI();
+
+// Railway terminates HTTPS at its proxy, so redirect only when developing locally.
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseHttpsRedirection();
 }
-
-app.UseHttpsRedirection();
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.MapGet("/", () => Results.Redirect("/swagger"));
+app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 
 app.MapControllers();
 
