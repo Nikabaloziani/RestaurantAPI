@@ -12,8 +12,8 @@ using RestaurantDATA.DB_Context;
 namespace RestaurantDATA.Migrations
 {
     [DbContext(typeof(RestaurantDB))]
-    [Migration("20261017084636_newDatabasee")]
-    partial class newDatabasee
+    [Migration("20261017150643_NewDatabase")]
+    partial class NewDatabase
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

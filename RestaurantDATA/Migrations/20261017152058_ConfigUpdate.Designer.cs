@@ -12,8 +12,8 @@ using RestaurantDATA.DB_Context;
 namespace RestaurantDATA.Migrations
 {
     [DbContext(typeof(RestaurantDB))]
-    [Migration("20261017083332_newdatabase")]
-    partial class newdatabase
+    [Migration("20261017152058_ConfigUpdate")]
+    partial class ConfigUpdate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -466,7 +466,7 @@ namespace RestaurantDATA.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
-                        .HasDefaultValueSql("GETUTCDATE()");
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.Property<bool>("IsActive")
                         .ValueGeneratedOnAdd()

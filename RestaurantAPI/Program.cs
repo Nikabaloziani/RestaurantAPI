@@ -25,12 +25,7 @@ if (!string.IsNullOrWhiteSpace(railwayPort))
     builder.WebHost.UseUrls($"http://0.0.0.0:{railwayPort}");
 }
 
-// ---------------------------------------------------------------------------
-// Database connection string (no secrets in code). Order of precedence:
-//   1. DATABASE_URL            e.g. postgresql://user:pass@host:port/db   (Railway)
-//   2. PGHOST, PGDATABASE, PGUSER, PGPASSWORD (+ optional PGPORT)
-//   3. ConnectionStrings:DefaultConnection (appsettings.json, local development)
-// ---------------------------------------------------------------------------
+
 static string Quote(string value) => "\"" + value.Replace("\"", "\"\"") + "\"";
 
 static string? ResolveConnectionString(IConfiguration configuration)
@@ -116,9 +111,7 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 .AddEntityFrameworkStores<RestaurantDB>()
 .AddDefaultTokenProviders();
 
-// JWT Configuration
-// Production: set Jwt__Key (min. 32 characters) as a Railway variable.
-// A development-only fallback is used when running locally.
+
 var jwtKey = builder.Configuration["Jwt:Key"];
 var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "RestaurantAPI";
 var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "RestaurantClient";

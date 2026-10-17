@@ -38,9 +38,7 @@ namespace RestaurantDATA.Configurations
 
             builder.Property(t => t.CreatedAt)
                         .IsRequired()
-                        .HasDefaultValueSql("GETUTCDATE()");
-
-
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
         }
     }
 }
