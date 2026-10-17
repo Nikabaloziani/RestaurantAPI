@@ -19,9 +19,7 @@ using ProductRepository = RestaurantDAL.Repositories.ProductRepository;
 var builder = WebApplication.CreateBuilder(args);
 
 // DB Context
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-                     ?? Environment.GetEnvironmentVariable("DATABASE_URL")
-                     ?? "postgresql://postgres:wsgxTfxeLWxiLdhHqecZmPEcrAdZlKkO@postgres.railway.internal:5432/railway";
+var connectionString = "postgresql://postgres:wsgxTfxeLWxiLdhHqecZmPEcrAdZlKkO@postgres.railway.internal:5432/railway";
 
 builder.Services.AddDbContext<RestaurantDB>(options =>
     options.UseNpgsql(connectionString));
