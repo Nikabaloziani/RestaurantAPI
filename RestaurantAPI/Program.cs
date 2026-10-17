@@ -111,9 +111,13 @@ var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
 {
-    await DataSeeder.SeedRolesAndAdminAsync(scope.ServiceProvider);
-}
+    var services = scope.ServiceProvider;
 
+    var dbContext = services.GetRequiredService<RestaurantDB>();
+    await dbContext.Database.MigrateAsync();
+
+    await DataSeeder.SeedRolesAndAdminAsync(services);
+}
 
 if (app.Environment.IsDevelopment())
 {
@@ -122,10 +126,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
 app.UseAuthentication();
 app.UseAuthorization();
-
 app.MapControllers();
-
 app.Run();
