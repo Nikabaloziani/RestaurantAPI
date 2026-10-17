@@ -12,7 +12,7 @@ using RestaurantDATA.DB_Context;
 namespace RestaurantDATA.Migrations
 {
     [DbContext(typeof(RestaurantDB))]
-    [Migration("20261016182432_newdatabase")]
+    [Migration("20261017083332_newdatabase")]
     partial class newdatabase
     {
         /// <inheritdoc />

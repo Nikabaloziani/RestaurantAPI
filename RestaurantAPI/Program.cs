@@ -19,13 +19,17 @@ using ProductRepository = RestaurantDAL.Repositories.ProductRepository;
 var builder = WebApplication.CreateBuilder(args);
 
 // DB Context
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+                     ?? Environment.GetEnvironmentVariable("DATABASE_URL")
+                     ?? "postgresql://postgres:wsgxTfxeLWxiLdhHqecZmPEcrAdZlKkO@postgres.railway.internal:5432/railway";
+
 builder.Services.AddDbContext<RestaurantDB>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseNpgsql(connectionString));
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
-// Swagger Configuration (Microsoft.OpenApi v2.x / .NET 10 თავსებადი)
+// Swagger Configuration 
 builder.Services.AddSwaggerGen(options =>
 {
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
