@@ -24,31 +24,11 @@ if (!string.IsNullOrWhiteSpace(railwayPort))
     builder.WebHost.UseUrls($"http://0.0.0.0:{railwayPort}");
 }
 
-// 1. ბაზის კავშირის უსაფრთხო ამოცნობა
-static string GetConnectionString(IConfiguration configuration)
-{
-    var direct = configuration.GetConnectionString("DefaultConnection");
-    if (!string.IsNullOrWhiteSpace(direct)) return direct;
 
-    var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL") ??
-                      Environment.GetEnvironmentVariable("DATABASE_PRIVATE_URL");
+var connectionString = "Host=postgres.railway.internal;Port=5432;Database=railway;Username=postgres;Password=wsgxTfxeLWxiLdhHqecZmPEcrAdZlKkO";
 
-    if (!string.IsNullOrWhiteSpace(databaseUrl) &&
-        Uri.TryCreate(databaseUrl, UriKind.Absolute, out var uri))
-    {
-        var userInfo = uri.UserInfo.Split(':', 2);
-        var user = Uri.UnescapeDataString(userInfo[0]);
-        var password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : "";
-        var port = uri.Port > 0 ? uri.Port : 5432;
-        var database = uri.AbsolutePath.TrimStart('/');
-
-        return $"Host={uri.Host};Port={port};Database={database};Username={user};Password={password}";
-    }
-
-    return "Host=postgres.railway.internal;Port=5432;Database=railway;Username=postgres;Password=wsgxTfxeLWxiLdhHqecZmPEcrAdZlKkO";
-}
-
-var connectionString = GetConnectionString(builder.Configuration);
+builder.Services.AddDbContext<RestaurantDB>(options =>
+    options.UseNpgsql(connectionString));
 
 builder.Services.AddDbContext<RestaurantDB>(options =>
     options.UseNpgsql(connectionString));
@@ -89,7 +69,7 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 .AddEntityFrameworkStores<RestaurantDB>()
 .AddDefaultTokenProviders();
 
-// JWT Configuration with safe Fallbacks (აღარასოდეს ჩამოიშლება თუ ცვლადი აკლია)
+// JWT Configuration with safe Fallbacks
 var jwtKey = builder.Configuration["Jwt:Key"] ?? Environment.GetEnvironmentVariable("Jwt__Key") ?? "SuperSecretRestaurantApiJwtKeyThatIsAtLeast32BytesLong!";
 var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? Environment.GetEnvironmentVariable("Jwt__Issuer") ?? "RestaurantAPI";
 var jwtAudience = builder.Configuration["Jwt:Audience"] ?? Environment.GetEnvironmentVariable("Jwt__Audience") ?? "RestaurantClient";
