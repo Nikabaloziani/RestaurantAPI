@@ -19,13 +19,7 @@ using ProductRepository = RestaurantDAL.Repositories.ProductRepository;
 var builder = WebApplication.CreateBuilder(args);
 
 // DB Context 
-var envConn = Environment.GetEnvironmentVariable("DATABASE_URL");
-var configConn = builder.Configuration.GetConnectionString("DefaultConnection");
-
-var connectionString = "postgresql://postgres:wsgxTfxeLWxiLdhHqecZmPEcrAdZlKkO@postgres.railway.internal:5432/railway";
-
-builder.Services.AddDbContext<RestaurantDB>(options =>
-    options.UseNpgsql(connectionString));
+var connectionString = "Host=postgres.railway.internal;Port=5432;Database=railway;Username=postgres;Password=wsgxTfxeLWxiLdhHqecZmPEcrAdZlKkO";
 
 builder.Services.AddDbContext<RestaurantDB>(options =>
     options.UseNpgsql(connectionString));
@@ -33,7 +27,7 @@ builder.Services.AddDbContext<RestaurantDB>(options =>
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
-// Swagger Configuration 
+// Swagger Configuration
 builder.Services.AddSwaggerGen(options =>
 {
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
@@ -98,9 +92,6 @@ builder.Services.AddScoped<IReservationRepository, ReservationRepository>();
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
 
-//----------------------------------------------------------------------------//
-
-builder.Services.AddScoped<IBasketRepository, BasketRepository>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<IBasketService, BasketService>();
