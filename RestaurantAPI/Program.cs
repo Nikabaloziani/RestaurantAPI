@@ -18,8 +18,13 @@ using ProductRepository = RestaurantDAL.Repositories.ProductRepository;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// DB Context
-var connectionString = "postgresql://postgres:wsgxTfxeLWxiLdhHqecZmPEcrAdZlKkO@postgres.railway.internal:5432/railway";
+// DB Context 
+var envConn = Environment.GetEnvironmentVariable("DATABASE_URL");
+var configConn = builder.Configuration.GetConnectionString("DefaultConnection");
+
+var connectionString = !string.IsNullOrEmpty(envConn) ? envConn :
+                       (!string.IsNullOrEmpty(configConn) ? configConn :
+                       "postgresql://postgres:wsgxTfxeLWxiLdhHqecZmPEcrAdZlKkO@postgres.railway.internal:5432/railway");
 
 builder.Services.AddDbContext<RestaurantDB>(options =>
     options.UseNpgsql(connectionString));
