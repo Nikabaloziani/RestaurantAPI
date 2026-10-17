@@ -1,3 +1,4 @@
+
 using AutoMapper;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -18,8 +19,15 @@ using ProductRepository = RestaurantDAL.Repositories.ProductRepository;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// DB Context 
-var connectionString = "Host=postgres.railway.internal;Port=5432;Database=railway;Username=postgres;Password=wsgxTfxeLWxiLdhHqecZmPEcrAdZlKkO";
+// Database connection: read from configuration or environment variables.
+var connectionString =
+    builder.Configuration.GetConnectionString("DefaultConnection");
+
+if (string.IsNullOrWhiteSpace(connectionString))
+{
+    throw new InvalidOperationException(
+        "ConnectionStrings:DefaultConnection is not configured.");
+}
 
 builder.Services.AddDbContext<RestaurantDB>(options =>
     options.UseNpgsql(connectionString));
@@ -37,16 +45,19 @@ builder.Services.AddSwaggerGen(options =>
         Scheme = "bearer",
         BearerFormat = "JWT",
         In = ParameterLocation.Header,
-        Description = "Write 'Bearer ' (the word Bearer and a space) followed by your token.\n\nExample: Bearer eyJhbGciOi..."
+        Description =
+            "Write 'Bearer ' followed by your JWT token.\n\n" +
+            "Example: Bearer eyJhbGciOi..."
     });
 
-    options.AddSecurityRequirement(doc => new OpenApiSecurityRequirement
-    {
+    options.AddSecurityRequirement(doc =>
+        new OpenApiSecurityRequirement
         {
-            new OpenApiSecuritySchemeReference("Bearer", doc),
-            new List<string>()
-        }
-    });
+            {
+                new OpenApiSecuritySchemeReference("Bearer", doc),
+                new List<string>()
+            }
+        });
 });
 
 // Identity
@@ -59,11 +70,37 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 .AddEntityFrameworkStores<RestaurantDB>()
 .AddDefaultTokenProviders();
 
-// Authentication & JWT
+// JWT Configuration
+var jwtKey = builder.Configuration["Jwt:Key"];
+var jwtIssuer = builder.Configuration["Jwt:Issuer"];
+var jwtAudience = builder.Configuration["Jwt:Audience"];
+
+if (string.IsNullOrWhiteSpace(jwtKey))
+{
+    throw new InvalidOperationException(
+        "Jwt:Key is not configured.");
+}
+
+if (Encoding.UTF8.GetByteCount(jwtKey) < 32)
+{
+    throw new InvalidOperationException(
+        "Jwt:Key must contain at least 32 bytes.");
+}
+
+if (string.IsNullOrWhiteSpace(jwtIssuer) ||
+    string.IsNullOrWhiteSpace(jwtAudience))
+{
+    throw new InvalidOperationException(
+        "Jwt:Issuer and Jwt:Audience must be configured.");
+}
+
 builder.Services.AddAuthentication(options =>
 {
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultAuthenticateScheme =
+        JwtBearerDefaults.AuthenticationScheme;
+
+    options.DefaultChallengeScheme =
+        JwtBearerDefaults.AuthenticationScheme;
 })
 .AddJwtBearer(options =>
 {
@@ -73,18 +110,27 @@ builder.Services.AddAuthentication(options =>
         ValidateAudience = true,
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
-        ValidIssuer = builder.Configuration["Jwt:Issuer"],
-        ValidAudience = builder.Configuration["Jwt:Audience"],
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!)),
+
+        ValidIssuer = jwtIssuer,
+        ValidAudience = jwtAudience,
+
+        IssuerSigningKey = new SymmetricSecurityKey(
+            Encoding.UTF8.GetBytes(jwtKey)),
+
         RoleClaimType = ClaimTypes.Role
     };
 });
 
 // AutoMapper
-builder.Services.AddAutoMapper(cfg => { }, AppDomain.CurrentDomain.GetAssemblies());
+builder.Services.AddAutoMapper(
+    cfg => { },
+    AppDomain.CurrentDomain.GetAssemblies());
 
-// Repositories & Services
-builder.Services.AddScoped(typeof(IBaseRepository<>), typeof(BaseRepository<>));
+// Repositories
+builder.Services.AddScoped(
+    typeof(IBaseRepository<>),
+    typeof(BaseRepository<>));
+
 builder.Services.AddScoped<IBasketRepository, BasketRepository>();
 builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
@@ -92,6 +138,7 @@ builder.Services.AddScoped<IReservationRepository, ReservationRepository>();
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
 
+// Services
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<IBasketService, BasketService>();
@@ -109,11 +156,13 @@ using (var scope = app.Services.CreateScope())
     var services = scope.ServiceProvider;
 
     var dbContext = services.GetRequiredService<RestaurantDB>();
+
     await dbContext.Database.MigrateAsync();
 
     await DataSeeder.SeedRolesAndAdminAsync(services);
 }
 
+// Swagger
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -121,7 +170,10 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
 app.UseAuthentication();
 app.UseAuthorization();
+
 app.MapControllers();
+
 app.Run();
