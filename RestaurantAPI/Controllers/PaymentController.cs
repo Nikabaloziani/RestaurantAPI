@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RestaurantDATA.Entities;
 using RestaurantSERVICE.DTO.Payment;
@@ -19,6 +19,7 @@ namespace RestaurantAPI.Controllers
         }
 
         [HttpPost]
+        [Authorize(Roles = "Admin,Waiter")]
         public async Task<IActionResult> ProcessPayment([FromBody] CreatePaymentDTO dto)
         {
             try
@@ -37,6 +38,7 @@ namespace RestaurantAPI.Controllers
         }
 
         [HttpGet("{id}")]
+        [Authorize(Roles = "Admin,Waiter")]
         public async Task<IActionResult> GetById(int id)
         {
             var payment = await _paymentService.GetPaymentByIdAsync(id);
@@ -46,6 +48,7 @@ namespace RestaurantAPI.Controllers
         }
 
         [HttpGet("order/{orderId}")]
+        [Authorize(Roles = "Admin,Waiter")]
         public async Task<IActionResult> GetByOrderId(int orderId)
         {
             var payment = await _paymentService.GetPaymentByOrderIdAsync(orderId);

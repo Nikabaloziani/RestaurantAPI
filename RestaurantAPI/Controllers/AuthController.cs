@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RestaurantSERVICE.DTO.Auth;
 using RestaurantSERVICE.Interfaces;
@@ -38,6 +39,16 @@ namespace RestaurantAPI.Controllers
             return Ok(result);
         }
 
+        [HttpGet("me")]
+        [Authorize]
+        public async Task<IActionResult> GetMe()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrWhiteSpace(userId)) return Unauthorized();
+            var user = await _authService.GetUserByIdAsync(userId);
+            return user is null ? Unauthorized() : Ok(user);
+        }
+
         [HttpGet("users")]
         [Authorize(Roles = "Admin")] 
         public async Task<IActionResult> GetAllUsers()
@@ -50,6 +61,8 @@ namespace RestaurantAPI.Controllers
         [Authorize]
         public async Task<IActionResult> GetUserById(string id)
         {
+            var currentId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!User.IsInRole("Admin") && currentId != id) return Forbid();
             var user = await _authService.GetUserByIdAsync(id);
             if (user == null)
                 return NotFound("User not found.");

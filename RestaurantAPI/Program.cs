@@ -75,6 +75,22 @@ if (string.IsNullOrWhiteSpace(connectionString))
 builder.Services.AddDbContext<RestaurantDB>(options =>
     options.UseNpgsql(connectionString));
 
+// Only known frontend origins may access the API from a browser.
+// Railway variable example: FRONTEND_ORIGINS=https://your-project.vercel.app
+var frontendOrigins = (Environment.GetEnvironmentVariable("FRONTEND_ORIGINS") ?? "")
+    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+    .ToList();
+if (builder.Environment.IsDevelopment())
+{
+    frontendOrigins.Add("http://localhost:5173");
+    frontendOrigins.Add("http://localhost:5174");
+}
+builder.Services.AddCors(options => options.AddPolicy("RestaurantOS", policy =>
+{
+    if (frontendOrigins.Count > 0)
+        policy.WithOrigins(frontendOrigins.Distinct().ToArray()).AllowAnyHeader().AllowAnyMethod();
+}));
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
@@ -174,7 +190,6 @@ builder.Services.AddScoped<IReportService, ReportService>();
 
 var app = builder.Build();
 
-// Apply migrations and seed roles/admin on startup.
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -190,6 +205,8 @@ if (app.Environment.IsDevelopment())
 {
     app.UseHttpsRedirection();
 }
+
+app.UseCors("RestaurantOS");
 
 app.UseAuthentication();
 app.UseAuthorization();

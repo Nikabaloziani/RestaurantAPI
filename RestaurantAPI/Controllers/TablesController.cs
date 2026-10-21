@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using RestaurantSERVICE.DTO.Table;
@@ -35,7 +35,7 @@ namespace RestaurantAPI.Controllers
             return Ok(table);
         }
         [HttpPost]
-        [Authorize]
+        [Authorize(Roles = "Admin")]
 
         //(Roles = "Admin, admin, Waiter, waiter")
         public async Task<IActionResult> Create([FromBody] CreateTableDTO dto)

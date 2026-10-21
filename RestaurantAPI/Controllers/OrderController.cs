@@ -1,4 +1,4 @@
-﻿using System.Security.Claims;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RestaurantDATA.Entities;
@@ -47,6 +47,8 @@ namespace RestaurantAPI.Controllers
         {
             var order = await _orderService.GetOrderByIdAsync(id);
             if (order == null) return NotFound("Order not found.");
+            if (!User.IsInRole("Admin") && !User.IsInRole("Waiter") && order.UserId != GetUserId())
+                return Forbid();
 
             return Ok(order);
         }

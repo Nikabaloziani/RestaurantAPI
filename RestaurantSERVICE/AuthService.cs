@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using RestaurantDATA.Constants;
@@ -34,9 +34,11 @@ namespace RestaurantSERVICE
         {
             var userExists = await _userManager.FindByEmailAsync(dto.Email);
             if (userExists != null)
-            {
                 return new AuthResponseDTO { IsSuccess = false, Message = "User with this email already exists" };
-            }
+
+            // Public registration must NEVER accept an Admin/Waiter role from the request.
+            if (!await _roleManager.RoleExistsAsync(AppRoles.Customer))
+                return new AuthResponseDTO { IsSuccess = false, Message = "Registration is temporarily unavailable" };
 
             var user = new ApplicationUser
             {
@@ -53,12 +55,12 @@ namespace RestaurantSERVICE
                 return new AuthResponseDTO { IsSuccess = false, Message = errors };
             }
 
-            if (!await _roleManager.RoleExistsAsync(dto.Role))
+            var assigned = await _userManager.AddToRoleAsync(user, AppRoles.Customer);
+            if (!assigned.Succeeded)
             {
-                await _roleManager.CreateAsync(new IdentityRole(dto.Role));
+                await _userManager.DeleteAsync(user);
+                return new AuthResponseDTO { IsSuccess = false, Message = "Registration could not be completed" };
             }
-
-            await _userManager.AddToRoleAsync(user, dto.Role);
 
             return new AuthResponseDTO { IsSuccess = true, Message = "Registration completed successfully" };
         }

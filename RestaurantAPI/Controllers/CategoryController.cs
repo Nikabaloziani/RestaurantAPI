@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using RestaurantSERVICE.DTO.Category;
 using RestaurantSERVICE.Services;
 
@@ -33,6 +34,7 @@ namespace RestaurantAPI.Controllers
         }
 
         [HttpPost]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Create([FromBody] CreateCategoryDTO dto)
         {
             await _categoryService.AddAsync(dto);
@@ -40,6 +42,7 @@ namespace RestaurantAPI.Controllers
         }
 
         [HttpPut("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Update(int id, [FromBody] UpdateCategoryDTO dto)
         {
             var updated = await _categoryService.UpdateAsync(id, dto);
@@ -50,6 +53,7 @@ namespace RestaurantAPI.Controllers
         }
 
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Delete(int id)
         {
             var deleted = await _categoryService.DeleteAsync(id);

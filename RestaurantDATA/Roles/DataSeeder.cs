@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
 using RestaurantDATA.Entities;
 using System;
@@ -25,24 +25,44 @@ namespace RestaurantDATA.Roles
                 }
             }
 
-            string adminEmail = "admin@restaurant.com";
-            var adminUser = await userManager.FindByEmailAsync(adminEmail);
-
-            if (adminUser == null)
+ 
+            var adminEmail = Environment.GetEnvironmentVariable("BOOTSTRAP_ADMIN_EMAIL");
+            var adminPassword = Environment.GetEnvironmentVariable("BOOTSTRAP_ADMIN_PASSWORD");
+            if (!string.IsNullOrWhiteSpace(adminEmail) && !string.IsNullOrWhiteSpace(adminPassword))
             {
-                var newAdmin = new ApplicationUser
-                {
-                    UserName = adminEmail,
-                    Email = adminEmail,
-                    EmailConfirmed = true
-                };
+                if (adminPassword.Length < 12)
+                    throw new InvalidOperationException("BOOTSTRAP_ADMIN_PASSWORD must have at least 12 characters.");
 
-                
-                var result = await userManager.CreateAsync(newAdmin, "Admin123!");
-
-                if (result.Succeeded)
+                var adminUser = await userManager.FindByEmailAsync(adminEmail);
+                if (adminUser == null)
                 {
-                    await userManager.AddToRoleAsync(newAdmin, "Admin");
+                    adminUser = new ApplicationUser
+                    {
+                        UserName = adminEmail,
+                        Email = adminEmail,
+                        EmailConfirmed = true,
+                        FirstName = "Restaurant",
+                        LastName = "Administrator"
+                    };
+                    var created = await userManager.CreateAsync(adminUser, adminPassword);
+                    if (!created.Succeeded)
+                        throw new InvalidOperationException("Admin provisioning failed due to password policy or configuration.");
+
+                    var assigned = await userManager.AddToRoleAsync(adminUser, "Admin");
+                    if (!assigned.Succeeded)
+                        throw new InvalidOperationException("Admin role assignment failed.");
+                }
+                else if (await userManager.IsInRoleAsync(adminUser, "Admin"))
+                {
+   
+                    var resetToken = await userManager.GeneratePasswordResetTokenAsync(adminUser);
+                    var reset = await userManager.ResetPasswordAsync(adminUser, resetToken, adminPassword);
+                    if (!reset.Succeeded)
+                        throw new InvalidOperationException("Admin password rotation failed.");
+                }
+                else
+                {
+                    throw new InvalidOperationException("BOOTSTRAP_ADMIN_EMAIL belongs to a non-admin user.");
                 }
             }
         }

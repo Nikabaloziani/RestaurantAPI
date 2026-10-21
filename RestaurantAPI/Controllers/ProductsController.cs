@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using RestaurantSERVICE.DTO.Product;
 using RestaurantSERVICE.DTO.ProductFilterDTO;
 using RestaurantSERVICE.Interfaces;
@@ -33,6 +34,7 @@ namespace RestaurantAPI.Controllers
         }
 
         [HttpPost]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Create([FromBody] CreateProductDTO dto)
         {
             try
@@ -47,6 +49,7 @@ namespace RestaurantAPI.Controllers
         }
 
         [HttpPut]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Update([FromBody] UpdateProductDTO dto)
         {
             try
@@ -63,6 +66,7 @@ namespace RestaurantAPI.Controllers
         }
 
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Delete(int id)
         {
             var deleted = await _productService.DeleteAsync(id);
