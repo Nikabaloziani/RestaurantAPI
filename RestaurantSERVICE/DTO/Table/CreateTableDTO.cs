@@ -1,16 +1,15 @@
-﻿using System;
-using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.Text;
+using RestaurantDATA.Entities;
 
 namespace RestaurantSERVICE.DTO.Table
 {
     public class CreateTableDTO
     {
-        [Range(1, 1000, ErrorMessage = "Table number must be between 1 and 1000")]
+        [Range(1, 1000)]
         public int TableNumber { get; set; }
-
-        [Range(1, 50, ErrorMessage = "Capacity must be between 1 and 50 guests")]
+        [Range(1, 50)]
         public int Capacity { get; set; }
+        [EnumDataType(typeof(TableZone))]
+        public TableZone Zone { get; set; } = TableZone.MainHall;
     }
 }

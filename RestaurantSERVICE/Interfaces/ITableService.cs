@@ -1,4 +1,4 @@
-﻿using RestaurantSERVICE.DTO.Table;
+using RestaurantSERVICE.DTO.Table;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -9,6 +9,7 @@ namespace RestaurantSERVICE.Interfaces
         Task<List<TableDTO>> GetAllTablesAsync();
         Task<TableDTO?> GetByIdAsync(int id);
         Task AddAsync(CreateTableDTO dto);
+        Task<bool> UpdateDetailsAsync(int id, EditTableDTO dto);
         Task<bool> UpdateStatusAsync(int tableId, bool isOccupied);
         Task DeleteAsync(int id);
     }

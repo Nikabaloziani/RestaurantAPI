@@ -47,8 +47,6 @@ namespace RestaurantAPI.Controllers
         {
             var order = await _orderService.GetOrderByIdAsync(id);
             if (order == null) return NotFound("Order not found.");
-            if (!User.IsInRole("Admin") && !User.IsInRole("Waiter") && order.UserId != GetUserId())
-                return Forbid();
 
             return Ok(order);
         }
@@ -65,10 +63,16 @@ namespace RestaurantAPI.Controllers
         [Authorize(Roles = "Admin,Waiter")]
         public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateOrderStatusDTO dto)
         {
-            var updated = await _orderService.UpdateStatusAsync(id, dto.Status);
-            if (!updated) return NotFound("Order not found.");
-
-            return Ok("Order status updated successfully.");
+            try
+            {
+                var updated = await _orderService.UpdateStatusAsync(id, dto.Status);
+                if (!updated) return NotFound("Order not found.");
+                return Ok("Order status updated successfully.");
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(ex.Message);
+            }
         }
     }
 }

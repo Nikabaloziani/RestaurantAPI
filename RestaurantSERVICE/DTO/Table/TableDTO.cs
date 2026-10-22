@@ -1,7 +1,4 @@
-﻿using RestaurantDATA.Entities;
-using System;
-using System.Collections.Generic;
-using System.Text;
+using RestaurantDATA.Entities;
 
 namespace RestaurantSERVICE.DTO.Table
 {
@@ -10,6 +7,8 @@ namespace RestaurantSERVICE.DTO.Table
         public int Id { get; set; }
         public int TableNumber { get; set; }
         public int Capacity { get; set; }
+        public bool IsOccupied { get; set; }
+        public TableZone Zone { get; set; }
         public TableStatus Status { get; set; }
     }
 }

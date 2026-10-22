@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using RestaurantDATA.DB_Context;
 using RestaurantDATA.Entities;
 using RestaurantSERVICE.DTO.Report;
@@ -19,12 +19,11 @@ namespace RestaurantSERVICE
         {
             var totalRevenue = await _context.Payments
                 .Where(p => p.Status == PaymentStatus.Completed)
-                .SumAsync(p => (decimal?)p.Amount) ?? 0;
+                .SumAsync(p => (decimal?)p.Amount) ?? 0m;
 
             var totalOrders = await _context.Orders.CountAsync();
-            var activeOrders = await _context.Orders
-                .CountAsync(o => o.Status != OrderStatus.Paid && o.Status != OrderStatus.Cancelled);
-
+            var activeOrders = await _context.Orders.CountAsync(o =>
+                o.Status != OrderStatus.Paid && o.Status != OrderStatus.Cancelled);
             var totalReservations = await _context.Reservations.CountAsync();
 
             return new DashboardSummaryDTO
@@ -38,9 +37,18 @@ namespace RestaurantSERVICE
 
         public async Task<List<TopProductDTO>> GetTopSellingProductsAsync(int count = 5)
         {
-            var topProducts = await _context.OrderItems
-                .Include(oi => oi.Product)
-                .GroupBy(oi => new { oi.ProductId, ProductName = oi.Product != null ? oi.Product.Name : "Unknown" })
+            // "Sold" means a paid order with a recorded completed payment.
+            // Cancelled/pending/unpaid orders must not count as sales.
+            count = Math.Clamp(count, 1, 50);
+            return await _context.OrderItems
+                .Where(oi => oi.Order != null && oi.Order.Status == OrderStatus.Paid &&
+                    _context.Payments.Any(p => p.OrderId == oi.OrderId &&
+                                               p.Status == PaymentStatus.Completed))
+                .GroupBy(oi => new
+                {
+                    oi.ProductId,
+                    ProductName = oi.Product != null ? oi.Product.Name : "Unknown"
+                })
                 .Select(g => new TopProductDTO
                 {
                     ProductName = g.Key.ProductName,
@@ -50,17 +58,14 @@ namespace RestaurantSERVICE
                 .OrderByDescending(p => p.TotalSoldQuantity)
                 .Take(count)
                 .ToListAsync();
-
-            return topProducts;
         }
 
         public async Task<decimal> GetRevenueByDateRangeAsync(DateTimeOffset startDate, DateTimeOffset endDate)
         {
-            var revenue = await _context.Payments
-                .Where(p => p.Status == PaymentStatus.Completed && p.PaymentDate >= startDate && p.PaymentDate <= endDate)
-                .SumAsync(p => (decimal?)p.Amount) ?? 0;
-
-            return revenue;
+            return await _context.Payments
+                .Where(p => p.Status == PaymentStatus.Completed &&
+                            p.PaymentDate >= startDate && p.PaymentDate <= endDate)
+                .SumAsync(p => (decimal?)p.Amount) ?? 0m;
         }
     }
 }

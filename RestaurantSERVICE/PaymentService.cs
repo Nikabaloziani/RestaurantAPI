@@ -1,5 +1,7 @@
-﻿using AutoMapper;
-using RestaurantDAL.Repositories;
+using System.Data;
+using AutoMapper;
+using Microsoft.EntityFrameworkCore;
+using RestaurantDATA.DB_Context;
 using RestaurantDATA.Entities;
 using RestaurantSERVICE.DTO.Payment;
 using RestaurantSERVICE.Interfaces;
@@ -8,78 +10,98 @@ namespace RestaurantSERVICE
 {
     public class PaymentService : IPaymentService
     {
-        private readonly IPaymentRepository _paymentRepository;
-        private readonly IOrderRepository _orderRepository;
+        private readonly RestaurantDB _context;
         private readonly IMapper _mapper;
 
-        public PaymentService(
-            IPaymentRepository paymentRepository,
-            IOrderRepository orderRepository,
-            IMapper mapper)
+        public PaymentService(RestaurantDB context, IMapper mapper)
         {
-            _paymentRepository = paymentRepository;
-            _orderRepository = orderRepository;
+            _context = context;
             _mapper = mapper;
         }
 
         public async Task<PaymentDTO> ProcessPaymentAsync(CreatePaymentDTO dto)
         {
-            var order = await _orderRepository.GetByIdAsync(dto.OrderId);
-            if (order == null)
-            {
-                throw new ArgumentException("Order not found.");
-            }
+            if (dto.Method != PaymentMethod.Cash && dto.Method != PaymentMethod.Card)
+                throw new InvalidOperationException(
+                    "Only manually confirmed Cash or Card payments are supported. Online checkout is not connected.");
 
-            if (dto.Amount < order.TotalAmount)
-            {
-                throw new InvalidOperationException("Payment amount is less than the order total amount.");
-            }
+            if (dto.Amount <= 0)
+                throw new InvalidOperationException("Payment amount must be greater than zero.");
+
+            // Lock the order row so simultaneous payment requests cannot both pass
+            // the duplicate-payment check. Insert payment + mark Paid atomically.
+            // PostgreSQL is required (this project's configured database provider).
+            await using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted);
+            var rows = await _context.Orders
+                .FromSqlInterpolated($"SELECT * FROM \"Orders\" WHERE \"Id\" = {dto.OrderId} FOR UPDATE")
+                .ToListAsync();
+            var order = rows.SingleOrDefault();
+
+            if (order == null)
+                throw new ArgumentException("Order not found.");
+            if (order.Status == OrderStatus.Cancelled)
+                throw new InvalidOperationException("Cancelled orders cannot be paid.");
+            if (order.Status == OrderStatus.Paid)
+                throw new InvalidOperationException("Order is already marked as paid. Review its payment history.");
+            if (order.Status != OrderStatus.Pending &&
+                order.Status != OrderStatus.Preparing &&
+                order.Status != OrderStatus.Ready &&
+                order.Status != OrderStatus.Served)
+                throw new InvalidOperationException("Unsupported order status for payment.");
+            if (dto.Amount != order.TotalAmount)
+                throw new InvalidOperationException("Payment amount must exactly match the order total.");
+            if (await _context.Payments.AnyAsync(p => p.OrderId == dto.OrderId &&
+                                                      p.Status == PaymentStatus.Completed))
+                throw new InvalidOperationException("A completed payment already exists for this order.");
 
             var payment = new Payment
             {
-                OrderId = dto.OrderId,
-                Amount = dto.Amount,
+                OrderId = order.Id,
+                Amount = order.TotalAmount,
                 Method = dto.Method,
                 Status = PaymentStatus.Completed,
                 PaymentDate = DateTime.UtcNow,
-                TransactionId = Guid.NewGuid().ToString() 
+                // Do not invent a bank transaction ID for manually recorded payments.
+                TransactionId = null
             };
-
-            await _paymentRepository.AddAsync(payment);
-
+            _context.Payments.Add(payment);
             order.Status = OrderStatus.Paid;
-            await _orderRepository.UpdateAsync(order);
-
-            var createdPayment = await _paymentRepository.GetByIdAsync(payment.Id);
-            return _mapper.Map<PaymentDTO>(createdPayment);
+            await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
+            return _mapper.Map<PaymentDTO>(payment);
         }
 
         public async Task<PaymentDTO?> GetPaymentByIdAsync(int id)
         {
-            var payment = await _paymentRepository.GetByIdAsync(id);
+            var payment = await _context.Payments.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id);
             return payment == null ? null : _mapper.Map<PaymentDTO>(payment);
         }
 
         public async Task<PaymentDTO?> GetPaymentByOrderIdAsync(int orderId)
         {
-            var payment = await _paymentRepository.GetByOrderIdAsync(orderId);
+            var payment = await _context.Payments.AsNoTracking()
+                .Where(p => p.OrderId == orderId)
+                .OrderByDescending(p => p.PaymentDate)
+                .FirstOrDefaultAsync();
             return payment == null ? null : _mapper.Map<PaymentDTO>(payment);
         }
 
         public async Task<List<PaymentDTO>> GetAllPaymentsAsync()
         {
-            var payments = await _paymentRepository.GetAllAsync();
+            var payments = await _context.Payments.AsNoTracking()
+                .OrderByDescending(p => p.PaymentDate).ToListAsync();
             return _mapper.Map<List<PaymentDTO>>(payments);
         }
 
         public async Task<bool> UpdatePaymentStatusAsync(int id, PaymentStatus status)
         {
-            var payment = await _paymentRepository.GetByIdAsync(id);
-            if (payment == null) return false;
-
-            payment.Status = status;
-            await _paymentRepository.UpdateAsync(payment);
-            return true;
+            var existing = await _context.Payments.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id);
+            if (existing == null) return false;
+            if (existing.Status == status) return true;
+            // Refunds/reversals must be a dedicated audited workflow, rather
+            // than toggling a status without adjusting the associated order.
+            throw new InvalidOperationException(
+                "Payment status cannot be changed manually. Refunds are not implemented.");
         }
     }
 }

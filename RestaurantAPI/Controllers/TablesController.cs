@@ -45,6 +45,16 @@ namespace RestaurantAPI.Controllers
         }
 
 
+
+        [HttpPut("{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Edit(int id, [FromBody] EditTableDTO dto)
+        {
+            var updated = await _tableService.UpdateDetailsAsync(id, dto);
+            if (!updated) return NotFound(new { message = "Table not found" });
+            return Ok(new { message = "Table updated successfully" });
+        }
+
         [HttpPatch("{id}/status")]
         [Authorize(Roles = "Admin, Waiter")]
         public async Task<IActionResult> UpdateTableStatus(int id, [FromBody] UpdateTableStatusDto dto)

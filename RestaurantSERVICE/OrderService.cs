@@ -1,4 +1,7 @@
-﻿using AutoMapper;
+using AutoMapper;
+using System.Data;
+using Microsoft.EntityFrameworkCore;
+using RestaurantDATA.DB_Context;
 using RestaurantDAL.Repositories;
 using RestaurantDATA.Entities;
 using RestaurantSERVICE.DTO.Order;
@@ -11,15 +14,18 @@ namespace RestaurantSERVICE
         private readonly IOrderRepository _orderRepository;
         private readonly IBasketRepository _basketRepository;
         private readonly IMapper _mapper;
+        private readonly RestaurantDB _context;
 
         public OrderService(
             IOrderRepository orderRepository,
             IBasketRepository basketRepository,
-            IMapper mapper)
+            IMapper mapper,
+            RestaurantDB context)
         {
             _orderRepository = orderRepository;
             _basketRepository = basketRepository;
             _mapper = mapper;
+            _context = context;
         }
 
         public async Task<OrderDTO> CreateOrderFromBasketAsync(string userId, CreateOrderDTO dto)
@@ -75,11 +81,25 @@ namespace RestaurantSERVICE
 
         public async Task<bool> UpdateStatusAsync(int id, OrderStatus status)
         {
-            var order = await _orderRepository.GetByIdAsync(id);
+            if (!Enum.IsDefined(typeof(OrderStatus), status))
+                throw new InvalidOperationException("Invalid order status.");
+            if (status == OrderStatus.Paid)
+                throw new InvalidOperationException("Paid status must be set by recording a completed payment.");
+
+            // Serialize with PaymentService's payment lock to prevent racing
+            // a Cancelled status against an in-flight Completed payment.
+            await using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted);
+            var rows = await _context.Orders
+                .FromSqlInterpolated($"SELECT * FROM \"Orders\" WHERE \"Id\" = {id} FOR UPDATE")
+                .ToListAsync();
+            var order = rows.SingleOrDefault();
             if (order == null) return false;
+            if (order.Status == OrderStatus.Paid || order.Status == OrderStatus.Cancelled)
+                throw new InvalidOperationException("Paid or cancelled orders cannot be changed.");
 
             order.Status = status;
-            await _orderRepository.UpdateAsync(order);
+            await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
             return true;
         }
     }
