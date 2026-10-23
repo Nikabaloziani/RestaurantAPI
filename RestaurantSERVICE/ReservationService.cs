@@ -41,7 +41,7 @@ namespace RestaurantSERVICE
             return ServiceResult<List<TableDTO>>.Ok(tables.Select(ToTableDto).ToList());
         }
 
-        public async Task<ServiceResult<ReservationDTO>> CreateAsync(string userId, CreateReservationDTO dto)
+        public async Task<ServiceResult<ReservationDTO>> CreateAsync(string userId, CreateReservationDTO dto, bool isStaff)
         {
             var validationError = Validate(dto.StartTime, dto.GuestCount, dto.DurationMinutes);
             if (validationError != null)
@@ -53,6 +53,12 @@ namespace RestaurantSERVICE
             if (note != null && note.Length > MaxNoteLength)
             {
                 return Fail(ServiceErrorType.Validation, $"Note can be at most {MaxNoteLength} characters.");
+            }
+
+            var guestValidation = ValidateGuestDetails(dto.GuestName, dto.GuestPhone, isStaff);
+            if (guestValidation != null)
+            {
+                return Fail(ServiceErrorType.Validation, guestValidation);
             }
 
             var table = await _tableRepository.GetByIdAsync(dto.TableId);
@@ -75,6 +81,8 @@ namespace RestaurantSERVICE
                 EndTime = dto.StartTime.AddMinutes(dto.DurationMinutes),
                 GuestCount = dto.GuestCount,
                 Note = note,
+                GuestName = isStaff ? dto.GuestName?.Trim() : null,
+                GuestPhone = isStaff ? dto.GuestPhone?.Trim() : null,
                 Status = ReservationStatus.Confirmed,
                 CreatedAt = DateTimeOffset.UtcNow
             };
@@ -148,6 +156,16 @@ namespace RestaurantSERVICE
                 return ServiceResult<ReservationDTO>.Fail(ServiceErrorType.Validation, validationError);
             }
 
+            var guestValidation = ValidateGuestDetails(dto.GuestName, dto.GuestPhone, isStaff);
+            if (guestValidation != null)
+            {
+                return Fail(ServiceErrorType.Validation, guestValidation);
+            }
+            if (dto.Note?.Trim().Length > MaxNoteLength)
+            {
+                return Fail(ServiceErrorType.Validation, $"Note can be at most {MaxNoteLength} characters.");
+            }
+
             var reservation = await _reservationRepository.GetByIdWithDetailsAsync(id);
             if (reservation == null)
             {
@@ -186,6 +204,12 @@ namespace RestaurantSERVICE
             reservation.StartTime = dto.StartTime;
             reservation.EndTime = endTime;
             reservation.GuestCount = dto.GuestCount;
+            reservation.Table = table;
+            if (isStaff)
+            {
+                reservation.GuestName = dto.GuestName?.Trim();
+                reservation.GuestPhone = dto.GuestPhone?.Trim();
+            }
             reservation.Note = string.IsNullOrWhiteSpace(dto.Note) ? null : dto.Note.Trim();
             reservation.Status = ReservationStatus.Confirmed;
 
@@ -195,6 +219,30 @@ namespace RestaurantSERVICE
             return ServiceResult<ReservationDTO>.Ok(ToReservationDto(saved ?? reservation));
         }
 
+
+        // Only staff may enter details for a guest who is different from the signed-in user.
+        // These are required for new staff bookings, but remain nullable in the DB for legacy rows.
+        private static string? ValidateGuestDetails(string? name, string? phone, bool isStaff)
+        {
+            if (!isStaff)
+            {
+                if (!string.IsNullOrWhiteSpace(name) || !string.IsNullOrWhiteSpace(phone))
+                    return "Only staff can assign guest contact details.";
+                return null;
+            }
+
+            var cleanName = name?.Trim() ?? "";
+            var cleanPhone = phone?.Trim() ?? "";
+            if (cleanName.Length < 2 || cleanName.Length > 100)
+                return "Guest name must contain 2 to 100 characters.";
+            if (cleanPhone.Length < 7 || cleanPhone.Length > 25)
+                return "Guest phone must contain 7 to 25 characters.";
+            if (!cleanPhone.All(c => char.IsDigit(c) || c == '+' || c == ' ' || c == '-' || c == '(' || c == ')'))
+                return "Guest phone contains unsupported characters.";
+            if (cleanPhone.Count(char.IsDigit) < 7)
+                return "Guest phone must contain at least 7 digits.";
+            return null;
+        }
 
         private static string? Validate(DateTimeOffset startTime, int guestCount, int durationMinutes)
         {
@@ -244,8 +292,10 @@ namespace RestaurantSERVICE
                 TableId = reservation.TableId,
                 TableNumber = reservation.Table?.TableNumber ?? 0,
                 UserId = reservation.UserId,
-                CustomerName = customerName,
-                CustomerEmail = reservation.User?.Email,
+                CustomerName = !string.IsNullOrWhiteSpace(reservation.GuestName) ? reservation.GuestName : customerName,
+                CustomerEmail = !string.IsNullOrWhiteSpace(reservation.GuestName) ? null : reservation.User?.Email,
+                GuestName = reservation.GuestName,
+                GuestPhone = reservation.GuestPhone,
                 StartTime = reservation.StartTime,
                 EndTime = reservation.EndTime,
                 DurationMinutes = (int)(reservation.EndTime - reservation.StartTime).TotalMinutes,

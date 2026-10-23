@@ -8,7 +8,7 @@ namespace RestaurantSERVICE.Interfaces
     {
         Task<ServiceResult<List<TableDTO>>> GetAvailableTablesAsync(DateTimeOffset startTime, int guestCount, int durationMinutes);
 
-        Task<ServiceResult<ReservationDTO>> CreateAsync(string userId, CreateReservationDTO dto);
+        Task<ServiceResult<ReservationDTO>> CreateAsync(string userId, CreateReservationDTO dto, bool isStaff);
 
         Task<List<ReservationDTO>> GetMineAsync(string userId);
 

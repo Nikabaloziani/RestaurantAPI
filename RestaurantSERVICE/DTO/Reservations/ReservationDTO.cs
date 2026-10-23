@@ -12,6 +12,8 @@ namespace RestaurantSERVICE.DTO.Reservations
         public string UserId { get; set; } = string.Empty;
         public string CustomerName { get; set; } = string.Empty;
         public string? CustomerEmail { get; set; }
+        public string? GuestName { get; set; }
+        public string? GuestPhone { get; set; }
 
         public DateTimeOffset StartTime { get; set; }
         public DateTimeOffset EndTime { get; set; }

@@ -56,7 +56,7 @@ namespace RestaurantAPI.Controllers
                 return Unauthorized();
             }
 
-            var result = await _reservationService.CreateAsync(userId, dto);
+            var result = await _reservationService.CreateAsync(userId, dto, IsStaff);
             if (!result.IsSuccess)
             {
                 return Error(result);

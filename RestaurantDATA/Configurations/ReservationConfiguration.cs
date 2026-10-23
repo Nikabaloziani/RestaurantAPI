@@ -15,6 +15,9 @@ namespace RestaurantDATA.Configurations
             builder.Property(r => r.Note)
                    .HasMaxLength(500);
 
+            builder.Property(r => r.GuestName).HasMaxLength(100);
+            builder.Property(r => r.GuestPhone).HasMaxLength(25);
+
             builder.HasOne(r => r.Table)
                    .WithMany()
                    .HasForeignKey(r => r.TableId)
