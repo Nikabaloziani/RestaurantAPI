@@ -25,6 +25,11 @@ namespace RestaurantDATA.Configurations
             builder.HasOne(x => x.Category)
                    .WithMany(c => c.Products)
                    .HasForeignKey(x => x.CategoryId);
+
+            builder.HasOne(x => x.Restaurant)
+                   .WithMany()
+                   .HasForeignKey(x => x.RestaurantId)
+                   .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

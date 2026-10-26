@@ -14,6 +14,9 @@ namespace RestaurantDATA.Entities
         public string Name { get; set; }
         public decimal Price { get; set; }
 
+        public Guid? RestaurantId { get; set; }
+
+        public Restaurant? Restaurant { get; set; }
         public bool Nuts { get; set; }
         public bool Vegeterian { get; set; }
         public int Spiciness { get; set; }

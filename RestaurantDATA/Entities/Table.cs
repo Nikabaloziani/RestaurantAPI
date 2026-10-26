@@ -18,6 +18,9 @@ namespace RestaurantDATA.Entities
         public TableZone Zone { get; set; }
         public bool IsActive { get; set; } = true;
         public bool IsDeleted { get; set; } = false;
+        public Guid? RestaurantId { get; set; }
+
+        public Restaurant? Restaurant { get; set; }
         public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
         public TableStatus Status { get; set; } = TableStatus.Free;
     }

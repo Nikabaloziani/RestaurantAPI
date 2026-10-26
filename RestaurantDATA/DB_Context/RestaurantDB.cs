@@ -18,6 +18,10 @@ namespace RestaurantDATA.DB_Context
         public DbSet<Order> Orders { get; set; }
         public DbSet<OrderItem> OrderItems { get; set; }
         public DbSet<Payment> Payments { get; set; }
+        public DbSet<Restaurant> Restaurants => Set<Restaurant>();
+
+        public DbSet<RestaurantUser> RestaurantUsers
+            => Set<RestaurantUser>();
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)

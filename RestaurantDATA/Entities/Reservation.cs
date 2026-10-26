@@ -20,10 +20,12 @@ namespace RestaurantDATA.Entities
 
         public DateTimeOffset EndTime { get; set; }
 
+        public Guid? RestaurantId { get; set; }
+
+        public Restaurant? Restaurant { get; set; }
         public int GuestCount { get; set; }
         public string? Note { get; set; }
 
-        // Guest details are optional for existing reservations. UserId tracks who created the booking.
         public string? GuestName { get; set; }
         public string? GuestPhone { get; set; }
 

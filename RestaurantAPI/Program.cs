@@ -1,4 +1,3 @@
-
 using AutoMapper;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -167,7 +166,6 @@ builder.Services.AddSwaggerGen(options =>
         });
 });
 
-// 
 // ASP.NET CORE IDENTITY
 
 builder.Services
@@ -314,6 +312,13 @@ builder.Services.AddScoped<
     IReportService,
     ReportService>();
 
+builder.Services.AddScoped<
+    IRestaurantService,
+    RestaurantService>();
+
+builder.Services.AddScoped<
+    ICurrentRestaurantService,
+    CurrentRestaurantService>();
 
 var app = builder.Build();
 

@@ -14,7 +14,9 @@ namespace RestaurantDATA.Entities
 
         public int OrderId { get; set; }
         public Order? Order { get; set; }
+        public Guid? RestaurantId { get; set; }
 
+        public Restaurant? Restaurant { get; set; }
         public decimal Amount { get; set; }
         public PaymentMethod Method { get; set; }
         public PaymentStatus Status { get; set; } = PaymentStatus.Pending;

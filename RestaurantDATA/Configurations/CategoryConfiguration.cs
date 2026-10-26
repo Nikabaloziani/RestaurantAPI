@@ -17,6 +17,14 @@ namespace RestaurantDATA.Configurations
             builder.HasKey(c => c.Id);
             builder.Property(c => c.Name).IsRequired().HasMaxLength(100);
             builder.Property(c => c.Description).HasMaxLength(250);
+
+            builder.HasOne(c => c.Restaurant)
+                   .WithMany()
+                   .HasForeignKey(c => c.RestaurantId)
+                   .OnDelete(DeleteBehavior.Restrict);
+
+
+
         }
     }
 }

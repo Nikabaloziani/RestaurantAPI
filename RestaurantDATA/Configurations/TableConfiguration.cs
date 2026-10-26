@@ -38,6 +38,13 @@ namespace RestaurantDATA.Configurations
 
             builder.Property(t => t.CreatedAt)
     .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+          
+            builder.HasOne(t => t.Restaurant)
+                   .WithMany()
+                   .HasForeignKey(t => t.RestaurantId)
+                   .OnDelete(DeleteBehavior.Restrict);
+
         }
     }
 }

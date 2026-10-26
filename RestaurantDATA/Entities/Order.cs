@@ -16,6 +16,9 @@ namespace RestaurantDATA.Entities
 
         public int TableId { get; set; }
         public Table? Table { get; set; }
+        public Guid? RestaurantId { get; set; }
+
+        public Restaurant? Restaurant { get; set; }
 
         public DateTime OrderDate { get; set; } = DateTime.UtcNow;
         public OrderStatus Status { get; set; } = OrderStatus.Pending;
