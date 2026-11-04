@@ -1,14 +1,11 @@
-﻿using RestaurantSERVICE.DTO.Report;
-using System;
-using System.Collections.Generic;
-using System.Text;
+using RestaurantSERVICE.DTO.Report;
 
-namespace RestaurantSERVICE.Interfaces
+namespace RestaurantSERVICE.Interfaces;
+
+public interface IReportService
 {
-    public interface IReportService
-    {
-        Task<DashboardSummaryDTO> GetDashboardSummaryAsync();
-        Task<List<TopProductDTO>> GetTopSellingProductsAsync(int count = 5);
-        Task<decimal> GetRevenueByDateRangeAsync(DateTimeOffset startDate, DateTimeOffset endDate);
-    }
+    Task<DashboardSummaryDTO> GetDashboardSummaryAsync(Guid restaurantId, string userId, CancellationToken ct = default);
+    Task<List<TopProductDTO>> GetTopSellingProductsAsync(Guid restaurantId, string userId, int count = 5, CancellationToken ct = default);
+    Task<decimal> GetRevenueByDateRangeAsync(Guid restaurantId, string userId,
+        DateTimeOffset startDate, DateTimeOffset endDate, CancellationToken ct = default);
 }

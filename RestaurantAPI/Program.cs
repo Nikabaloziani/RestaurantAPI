@@ -246,79 +246,35 @@ builder.Services.AddAutoMapper(
     AppDomain.CurrentDomain.GetAssemblies());
 
 
-builder.Services.AddScoped(
-    typeof(IBaseRepository<>),
-    typeof(BaseRepository<>));
 
-builder.Services.AddScoped<
-    IBasketRepository,
-    BasketRepository>();
+// ==========================================
+// REPOSITORIES
+// ==========================================
 
-builder.Services.AddScoped<
-    ICategoryRepository,
-    CategoryRepository>();
+builder.Services.AddScoped(typeof(IBaseRepository<>), typeof(BaseRepository<>));
 
-builder.Services.AddScoped<
-    IProductRepository,
-    ProductRepository>();
+builder.Services.AddScoped<IBasketRepository, BasketRepository>();
+builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
+builder.Services.AddScoped<IProductRepository, ProductRepository>();
+builder.Services.AddScoped<IReservationRepository, ReservationRepository>();
+builder.Services.AddScoped<IOrderRepository, OrderRepository>();
+builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
+builder.Services.AddScoped<ICategoryService, CategoryService>();
+builder.Services.AddScoped<IProductService, ProductService>();
+builder.Services.AddScoped<IBasketService, BasketService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<ITableService, TableService>();
+builder.Services.AddScoped<IReservationService, ReservationService>();
+builder.Services.AddScoped<IOrderService, OrderService>();
+builder.Services.AddScoped<IPaymentService, PaymentService>();
+builder.Services.AddScoped<IReportService, ReportService>();
 
-builder.Services.AddScoped<
-    IReservationRepository,
-    ReservationRepository>();
+builder.Services.AddScoped<IRestaurantService, RestaurantService>();
+builder.Services.AddScoped<ICurrentRestaurantService, CurrentRestaurantService>();
 
-builder.Services.AddScoped<
-    IOrderRepository,
-    OrderRepository>();
+builder.Services.AddScoped<IStaffService, StaffService>();
 
-builder.Services.AddScoped<
-    IPaymentRepository,
-    PaymentRepository>();
-
-
-
-builder.Services.AddScoped<
-    ICategoryService,
-    CategoryService>();
-
-builder.Services.AddScoped<
-    IProductService,
-    ProductService>();
-
-builder.Services.AddScoped<
-    IBasketService,
-    BasketService>();
-
-builder.Services.AddScoped<
-    IAuthService,
-    AuthService>();
-
-builder.Services.AddScoped<
-    ITableService,
-    TableService>();
-
-builder.Services.AddScoped<
-    IReservationService,
-    ReservationService>();
-
-builder.Services.AddScoped<
-    IOrderService,
-    OrderService>();
-
-builder.Services.AddScoped<
-    IPaymentService,
-    PaymentService>();
-
-builder.Services.AddScoped<
-    IReportService,
-    ReportService>();
-
-builder.Services.AddScoped<
-    IRestaurantService,
-    RestaurantService>();
-
-builder.Services.AddScoped<
-    ICurrentRestaurantService,
-    CurrentRestaurantService>();
+builder.Services.AddScoped<IOrganizationBillingService, OrganizationBillingService>();
 
 var app = builder.Build();
 

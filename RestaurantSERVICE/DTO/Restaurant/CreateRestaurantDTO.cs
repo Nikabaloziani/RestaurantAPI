@@ -1,7 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
+using System;
 using System.ComponentModel.DataAnnotations;
-using System.Text;
 
 namespace RestaurantSERVICE.DTO.Restaurant
 {
@@ -14,9 +12,12 @@ namespace RestaurantSERVICE.DTO.Restaurant
         [Required]
         [RegularExpression(
             @"^[a-z0-9]+(?:-[a-z0-9]+)*$",
-            ErrorMessage = "Use lowercase letters, numbers and hyphens."
-        )]
+            ErrorMessage = "Use lowercase letters, numbers and hyphens.")]
         [StringLength(150)]
         public string Slug { get; set; } = string.Empty;
+
+        // Required: an unassigned restaurant would bypass SaaS location quotas.
+        [Required]
+        public Guid? OrganizationId { get; set; }
     }
 }

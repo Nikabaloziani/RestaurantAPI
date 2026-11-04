@@ -1,75 +1,60 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RestaurantDATA.Entities;
 using RestaurantSERVICE.DTO.Payment;
 using RestaurantSERVICE.Interfaces;
 
-namespace RestaurantAPI.Controllers
+namespace RestaurantAPI.Controllers;
+
+[ApiController]
+[Authorize]
+[Route("api/restaurants/{restaurantId:guid}/payments")]
+public class PaymentsController : ControllerBase
 {
-    [Authorize(Roles = "Admin,Waiter")]
-    [ApiController]
-    [Route("api/[controller]")]
-    public class PaymentsController : ControllerBase
+    private readonly IPaymentService _payments;
+    public PaymentsController(IPaymentService payments) => _payments = payments;
+    private string UserId => User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
+
+    private async Task<IActionResult> Handle(Func<Task<IActionResult>> action)
     {
-        private readonly IPaymentService _paymentService;
-
-        public PaymentsController(IPaymentService paymentService)
+        if (string.IsNullOrWhiteSpace(UserId)) return Unauthorized();
+        try { return await action(); }
+        // A browser AbortController may cancel requests during a restaurant switch.
+        catch (OperationCanceledException) when (HttpContext.RequestAborted.IsCancellationRequested)
         {
-            _paymentService = paymentService;
+            return new EmptyResult();
         }
-
-        // Records money that has ALREADY been collected in cash or on an external
-        // card terminal. This endpoint does NOT charge a bank card.
-        [HttpPost]
-        public async Task<IActionResult> ProcessPayment([FromBody] CreatePaymentDTO dto)
-        {
-            try
-            {
-                return Ok(await _paymentService.ProcessPaymentAsync(dto));
-            }
-            catch (ArgumentException ex)
-            {
-                return NotFound(ex.Message);
-            }
-            catch (InvalidOperationException ex)
-            {
-                return Conflict(ex.Message);
-            }
-        }
-
-        [HttpGet("{id}")]
-        public async Task<IActionResult> GetById(int id)
-        {
-            var payment = await _paymentService.GetPaymentByIdAsync(id);
-            return payment == null ? NotFound("Payment not found.") : Ok(payment);
-        }
-
-        [HttpGet("order/{orderId}")]
-        public async Task<IActionResult> GetByOrderId(int orderId)
-        {
-            var payment = await _paymentService.GetPaymentByOrderIdAsync(orderId);
-            return payment == null ? NotFound("Payment for this order not found.") : Ok(payment);
-        }
-
-        [HttpGet]
-        public async Task<IActionResult> GetAll()
-        {
-            return Ok(await _paymentService.GetAllPaymentsAsync());
-        }
-
-        [HttpPatch("{id}/status")]
-        [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> UpdateStatus(int id, [FromBody] PaymentStatus status)
-        {
-            try
-            {
-                var updated = await _paymentService.UpdatePaymentStatusAsync(id, status);
-                return updated ? Ok("Payment unchanged.") : NotFound("Payment not found.");
-            }
-            catch (InvalidOperationException ex)
-            {
-                return Conflict(ex.Message);
-            }
-        }
+        catch (UnauthorizedAccessException) { return Forbid(); }
+        catch (ArgumentException ex) { return NotFound(ex.Message); }
+        catch (InvalidOperationException ex) { return Conflict(ex.Message); }
     }
+
+    // Records already-collected cash / external terminal payments; NOT an online charge.
+    [HttpPost]
+    public Task<IActionResult> ProcessPayment(Guid restaurantId, [FromBody] CreatePaymentDTO dto, CancellationToken ct) =>
+        Handle(async () => Ok(await _payments.ProcessPaymentAsync(restaurantId, UserId, dto, ct)));
+
+    [HttpGet("{id:int}")]
+    public Task<IActionResult> GetById(Guid restaurantId, int id, CancellationToken ct) =>
+        Handle(async () => {
+            var payment = await _payments.GetPaymentByIdAsync(restaurantId, UserId, id, ct);
+            return payment is null ? NotFound() : Ok(payment);
+        });
+
+    [HttpGet("order/{orderId:int}")]
+    public Task<IActionResult> GetByOrderId(Guid restaurantId, int orderId, CancellationToken ct) =>
+        Handle(async () => {
+            var payment = await _payments.GetPaymentByOrderIdAsync(restaurantId, UserId, orderId, ct);
+            return payment is null ? NotFound() : Ok(payment);
+        });
+
+    [HttpGet]
+    public Task<IActionResult> GetAll(Guid restaurantId, CancellationToken ct) =>
+        Handle(async () => Ok(await _payments.GetAllPaymentsAsync(restaurantId, UserId, ct)));
+
+    [HttpPatch("{id:int}/status")]
+    public Task<IActionResult> UpdateStatus(Guid restaurantId, int id, [FromBody] PaymentStatus status, CancellationToken ct) =>
+        Handle(async () => await _payments.UpdatePaymentStatusAsync(restaurantId, UserId, id, status, ct)
+            ? Ok("Payment unchanged.") : NotFound());
 }

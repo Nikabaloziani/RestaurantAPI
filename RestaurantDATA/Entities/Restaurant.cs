@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -18,6 +18,10 @@ namespace RestaurantDATA.Entities
         public bool IsActive { get; set; } = true;
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        // Nullable so existing restaurants remain intact after the schema migration.
+        public Guid? OrganizationId { get; set; }
+        public Organization? Organization { get; set; }
 
         public ICollection<RestaurantUser> RestaurantUsers { get; set; }
             = new List<RestaurantUser>();

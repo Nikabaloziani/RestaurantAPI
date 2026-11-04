@@ -353,6 +353,33 @@ namespace RestaurantDATA.Migrations
                     b.ToTable("OrderItems");
                 });
 
+            modelBuilder.Entity("RestaurantDATA.Entities.Organization", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<string>("OwnerUserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("character varying(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OwnerUserId")
+                        .IsUnique();
+
+                    b.ToTable("Organizations");
+                });
+
             modelBuilder.Entity("RestaurantDATA.Entities.Payment", b =>
                 {
                     b.Property<int>("Id")
@@ -509,6 +536,9 @@ namespace RestaurantDATA.Migrations
                         .HasMaxLength(150)
                         .HasColumnType("character varying(150)");
 
+                    b.Property<Guid?>("OrganizationId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Slug")
                         .IsRequired()
                         .HasMaxLength(150)
@@ -518,6 +548,8 @@ namespace RestaurantDATA.Migrations
 
                     b.HasIndex("Code")
                         .IsUnique();
+
+                    b.HasIndex("OrganizationId");
 
                     b.HasIndex("Slug")
                         .IsUnique();
@@ -544,6 +576,200 @@ namespace RestaurantDATA.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("RestaurantUsers");
+                });
+
+            modelBuilder.Entity("RestaurantDATA.Entities.StaffInvitation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("AcceptedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("AcceptedByUserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("character varying(450)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedByUserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("character varying(450)");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("NormalizedEmail")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<Guid>("RestaurantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Role")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique();
+
+                    b.HasIndex("RestaurantId", "NormalizedEmail");
+
+                    b.ToTable("StaffInvitations", (string)null);
+                });
+
+            modelBuilder.Entity("RestaurantDATA.Entities.Subscription", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("CurrentPeriodEndsAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PlanCode")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<DateTimeOffset>("StartedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("TrialEndsAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId")
+                        .IsUnique();
+
+                    b.HasIndex("PlanCode");
+
+                    b.ToTable("Subscriptions");
+                });
+
+            modelBuilder.Entity("RestaurantDATA.Entities.SubscriptionPlan", b =>
+                {
+                    b.Property<string>("Code")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<bool>("AdvancedAnalyticsEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("BasicAnalyticsEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("InventoryEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("KitchenDisplayEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("MaxEmployees")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("MaxLocations")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("MonthlyPriceUsd")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("numeric(10,2)");
+
+                    b.Property<bool>("MultiBranchAnalyticsEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(70)
+                        .HasColumnType("character varying(70)");
+
+                    b.Property<bool>("QrMenuEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("ReservationsEnabled")
+                        .HasColumnType("boolean");
+
+                    b.HasKey("Code");
+
+                    b.ToTable("SubscriptionPlans");
+
+                    b.HasData(
+                        new
+                        {
+                            Code = "starter",
+                            AdvancedAnalyticsEnabled = false,
+                            BasicAnalyticsEnabled = true,
+                            InventoryEnabled = false,
+                            IsActive = true,
+                            KitchenDisplayEnabled = false,
+                            MaxEmployees = 10,
+                            MaxLocations = 1,
+                            MonthlyPriceUsd = 39.99m,
+                            MultiBranchAnalyticsEnabled = false,
+                            Name = "Starter",
+                            QrMenuEnabled = false,
+                            ReservationsEnabled = true
+                        },
+                        new
+                        {
+                            Code = "pro",
+                            AdvancedAnalyticsEnabled = true,
+                            BasicAnalyticsEnabled = true,
+                            InventoryEnabled = false,
+                            IsActive = true,
+                            KitchenDisplayEnabled = true,
+                            MaxEmployees = 20,
+                            MaxLocations = 2,
+                            MonthlyPriceUsd = 79.99m,
+                            MultiBranchAnalyticsEnabled = false,
+                            Name = "Pro",
+                            QrMenuEnabled = true,
+                            ReservationsEnabled = true
+                        },
+                        new
+                        {
+                            Code = "business",
+                            AdvancedAnalyticsEnabled = true,
+                            BasicAnalyticsEnabled = true,
+                            InventoryEnabled = true,
+                            IsActive = true,
+                            KitchenDisplayEnabled = true,
+                            MaxEmployees = 60,
+                            MaxLocations = 5,
+                            MonthlyPriceUsd = 179.00m,
+                            MultiBranchAnalyticsEnabled = true,
+                            Name = "Business",
+                            QrMenuEnabled = true,
+                            ReservationsEnabled = true
+                        });
                 });
 
             modelBuilder.Entity("RestaurantDATA.Entities.Table", b =>
@@ -711,6 +937,15 @@ namespace RestaurantDATA.Migrations
                     b.Navigation("Restaurant");
                 });
 
+            modelBuilder.Entity("RestaurantDATA.Entities.Organization", b =>
+                {
+                    b.HasOne("RestaurantDATA.Entities.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("RestaurantDATA.Entities.Payment", b =>
                 {
                     b.HasOne("RestaurantDATA.Entities.Order", "Order")
@@ -773,6 +1008,16 @@ namespace RestaurantDATA.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("RestaurantDATA.Entities.Restaurant", b =>
+                {
+                    b.HasOne("RestaurantDATA.Entities.Organization", "Organization")
+                        .WithMany("Restaurants")
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Organization");
+                });
+
             modelBuilder.Entity("RestaurantDATA.Entities.RestaurantUser", b =>
                 {
                     b.HasOne("RestaurantDATA.Entities.Restaurant", "Restaurant")
@@ -790,6 +1035,36 @@ namespace RestaurantDATA.Migrations
                     b.Navigation("Restaurant");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("RestaurantDATA.Entities.StaffInvitation", b =>
+                {
+                    b.HasOne("RestaurantDATA.Entities.Restaurant", "Restaurant")
+                        .WithMany()
+                        .HasForeignKey("RestaurantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Restaurant");
+                });
+
+            modelBuilder.Entity("RestaurantDATA.Entities.Subscription", b =>
+                {
+                    b.HasOne("RestaurantDATA.Entities.Organization", "Organization")
+                        .WithOne("Subscription")
+                        .HasForeignKey("RestaurantDATA.Entities.Subscription", "OrganizationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("RestaurantDATA.Entities.SubscriptionPlan", "Plan")
+                        .WithMany("Subscriptions")
+                        .HasForeignKey("PlanCode")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Organization");
+
+                    b.Navigation("Plan");
                 });
 
             modelBuilder.Entity("RestaurantDATA.Entities.Table", b =>
@@ -812,6 +1087,13 @@ namespace RestaurantDATA.Migrations
                     b.Navigation("OrderItems");
                 });
 
+            modelBuilder.Entity("RestaurantDATA.Entities.Organization", b =>
+                {
+                    b.Navigation("Restaurants");
+
+                    b.Navigation("Subscription");
+                });
+
             modelBuilder.Entity("RestaurantDATA.Entities.Products", b =>
                 {
                     b.Navigation("Baskets");
@@ -820,6 +1102,11 @@ namespace RestaurantDATA.Migrations
             modelBuilder.Entity("RestaurantDATA.Entities.Restaurant", b =>
                 {
                     b.Navigation("RestaurantUsers");
+                });
+
+            modelBuilder.Entity("RestaurantDATA.Entities.SubscriptionPlan", b =>
+                {
+                    b.Navigation("Subscriptions");
                 });
 #pragma warning restore 612, 618
         }

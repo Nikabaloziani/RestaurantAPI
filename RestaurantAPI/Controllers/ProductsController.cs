@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using RestaurantDATA.Entities;
 using RestaurantSERVICE.DTO.Product;
 using RestaurantSERVICE.DTO.ProductFilterDTO;
 using RestaurantSERVICE.Interfaces;
@@ -7,79 +9,65 @@ using RestaurantSERVICE.Interfaces;
 namespace RestaurantAPI.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Authorize]
+    [Route("api/restaurants/{restaurantId:guid}/products")]
     public class ProductsController : ControllerBase
     {
-        private readonly IProductService _productService;
+        private readonly IProductService _products;
+        private readonly UserManager<ApplicationUser> _users;
 
-        public ProductsController(IProductService productService)
+        public ProductsController(IProductService products, UserManager<ApplicationUser> users)
         {
-            _productService = productService;
+            _products = products;
+            _users = users;
+        }
+
+        private async Task<IActionResult> HandleAsync(Func<string, Task<IActionResult>> work)
+        {
+            var userId = _users.GetUserId(User);
+            if (string.IsNullOrWhiteSpace(userId)) return Unauthorized();
+            try { return await work(userId); }
+            catch (UnauthorizedAccessException) { return Forbid(); }
+            catch (ArgumentException ex) { return BadRequest(ex.Message); }
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAll()
-        {
-            var products = await _productService.GetAllAsync();
-            return Ok(products);
-        }
+        public Task<IActionResult> GetAll(Guid restaurantId, CancellationToken ct) =>
+            HandleAsync(async userId => Ok(await _products.GetAllAsync(restaurantId, userId, ct)));
 
-        [HttpGet("{id}")]
-        public async Task<IActionResult> GetById(int id)
-        {
-            var product = await _productService.GetByIdAsync(id);
-            if (product == null) return NotFound("Product not found.");
-
-            return Ok(product);
-        }
+        [HttpGet("{id:int}")]
+        public Task<IActionResult> GetById(Guid restaurantId, int id, CancellationToken ct) =>
+            HandleAsync(async userId =>
+            {
+                var product = await _products.GetByIdAsync(restaurantId, id, userId, ct);
+                return product is null ? NotFound() : Ok(product);
+            });
 
         [HttpPost]
-        [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Create([FromBody] CreateProductDTO dto)
-        {
-            try
+        public Task<IActionResult> Create(Guid restaurantId, [FromBody] CreateProductDTO dto, CancellationToken ct) =>
+            HandleAsync(async userId =>
             {
-                var result = await _productService.AddAsync(dto);
-                return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
-            }
-            catch (ArgumentException ex)
+                var created = await _products.AddAsync(restaurantId, dto, userId, ct);
+                return CreatedAtAction(nameof(GetById), new { restaurantId, id = created.Id }, created);
+            });
+
+        [HttpPut("{id:int}")]
+        public Task<IActionResult> Update(Guid restaurantId, int id, [FromBody] UpdateProductDTO dto, CancellationToken ct) =>
+            HandleAsync(async userId =>
             {
-                return BadRequest(ex.Message); 
-            }
-        }
+                dto.Id = id; // The URL identifies the product, not a client-supplied body id.
+                return await _products.UpdateAsync(restaurantId, dto, userId, ct)
+                    ? Ok("Product updated successfully.") : NotFound();
+            });
 
-        [HttpPut]
-        [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Update([FromBody] UpdateProductDTO dto)
-        {
-            try
-            {
-                var updated = await _productService.UpdateAsync(dto);
-                if (!updated) return NotFound("Product not found.");
-
-                return Ok("Product updated successfully.");
-            }
-            catch (ArgumentException ex)
-            {
-                return BadRequest(ex.Message);
-            }
-        }
-
-        [HttpDelete("{id}")]
-        [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Delete(int id)
-        {
-            var deleted = await _productService.DeleteAsync(id);
-            if (!deleted) return NotFound("Product not found.");
-
-            return Ok("Product deleted successfully.");
-        }
+        [HttpDelete("{id:int}")]
+        public Task<IActionResult> Delete(Guid restaurantId, int id, CancellationToken ct) =>
+            HandleAsync(async userId =>
+                await _products.DeleteAsync(restaurantId, id, userId, ct)
+                    ? Ok("Product deleted successfully.") : NotFound());
 
         [HttpPost("filter")]
-        public async Task<IActionResult> Filter([FromBody] ProductFilterDTO filter)
-        {
-            var result = await _productService.GetFilteredAsync(filter);
-            return Ok(result);
-        }
+        public Task<IActionResult> Filter(Guid restaurantId, [FromBody] ProductFilterDTO filter, CancellationToken ct) =>
+            HandleAsync(async userId => Ok(await _products.GetFilteredAsync(restaurantId, filter, userId, ct)));
     }
 }

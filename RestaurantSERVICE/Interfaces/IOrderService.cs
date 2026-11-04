@@ -1,17 +1,13 @@
-﻿using RestaurantDATA.Entities;
+using RestaurantDATA.Entities;
 using RestaurantSERVICE.DTO.Order;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
-namespace RestaurantSERVICE.Interfaces
+namespace RestaurantSERVICE.Interfaces;
+
+public interface IOrderService
 {
-    public interface IOrderService
-    {
-        Task<OrderDTO> CreateOrderFromBasketAsync(string userId, CreateOrderDTO dto);
-        Task<OrderDTO?> GetOrderByIdAsync(int id);
-        Task<List<OrderDTO>> GetMyOrdersAsync(string userId);
-        Task<List<OrderDTO>> GetAllOrdersAsync();
-        Task<bool> UpdateStatusAsync(int id, OrderStatus status);
-    }
+    Task<OrderDTO> CreateOrderFromBasketAsync(Guid restaurantId, string userId, CreateOrderDTO dto, CancellationToken ct = default);
+    Task<OrderDTO?> GetOrderByIdAsync(Guid restaurantId, int id, string userId, CancellationToken ct = default);
+    Task<List<OrderDTO>> GetMyOrdersAsync(Guid restaurantId, string userId, CancellationToken ct = default);
+    Task<List<OrderDTO>> GetAllOrdersAsync(Guid restaurantId, string userId, CancellationToken ct = default);
+    Task<bool> UpdateStatusAsync(Guid restaurantId, int id, OrderStatus status, string userId, CancellationToken ct = default);
 }

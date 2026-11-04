@@ -1,17 +1,12 @@
-﻿using RestaurantDATA.Entities;
 using RestaurantSERVICE.DTO.Basket;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
-namespace RestaurantSERVICE.Interfaces
+namespace RestaurantSERVICE.Interfaces;
+
+public interface IBasketService
 {
-    public interface IBasketService
-    {
-        Task<List<BasketDTO>> GetMyBasketAsync(string userId);
-        Task<BasketDTO> AddToCartAsync(string userId, CreateBasketDTO dto);
-        Task<bool> UpdateQuantityAsync(string userId, int basketItemId, int quantity);
-        Task<bool> RemoveFromCartAsync(string userId, int basketItemId);
-        Task ClearCartAsync(string userId);
-    }
+    Task<List<BasketDTO>> GetMyBasketAsync(Guid restaurantId, string userId, CancellationToken ct = default);
+    Task<BasketDTO> AddToCartAsync(Guid restaurantId, string userId, CreateBasketDTO dto, CancellationToken ct = default);
+    Task<bool> UpdateQuantityAsync(Guid restaurantId, string userId, int itemId, int quantity, CancellationToken ct = default);
+    Task<bool> RemoveFromCartAsync(Guid restaurantId, string userId, int itemId, CancellationToken ct = default);
+    Task ClearCartAsync(Guid restaurantId, string userId, CancellationToken ct = default);
 }

@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using RestaurantDATA.Entities;
 using System;
 using System.Collections.Generic;
@@ -27,6 +27,12 @@ namespace RestaurantDATA.Configurations
 
             builder.HasIndex(r => r.Code).IsUnique();
             builder.HasIndex(r => r.Slug).IsUnique();
+
+            builder.HasIndex(r => r.OrganizationId);
+            builder.HasOne(r => r.Organization)
+                .WithMany(o => o.Restaurants)
+                .HasForeignKey(r => r.OrganizationId)
+                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }
