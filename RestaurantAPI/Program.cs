@@ -1,6 +1,7 @@
 using AutoMapper;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
@@ -12,15 +13,14 @@ using RestaurantDATA.Roles;
 using RestaurantSERVICE;
 using RestaurantSERVICE.Interfaces;
 using RestaurantSERVICE.Services;
+using System.Globalization;
 using System.Security.Claims;
 using System.Text;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ==========================================
 // RAILWAY PORT
-// ==========================================
-
 var railwayPort = Environment.GetEnvironmentVariable("PORT");
 
 if (!string.IsNullOrWhiteSpace(railwayPort))
@@ -28,10 +28,7 @@ if (!string.IsNullOrWhiteSpace(railwayPort))
     builder.WebHost.UseUrls($"http://0.0.0.0:{railwayPort}");
 }
 
-// ==========================================
 // POSTGRESQL CONNECTION
-// ==========================================
-
 static string Quote(string value) =>
     "\"" + value.Replace("\"", "\"\"") + "\"";
 
@@ -99,14 +96,10 @@ if (string.IsNullOrWhiteSpace(connectionString))
         "Configure DATABASE_URL, PostgreSQL variables, " +
         "or ConnectionStrings:DefaultConnection.");
 }
-
 builder.Services.AddDbContext<RestaurantDB>(options =>
     options.UseNpgsql(connectionString));
 
-// ==========================================
 // CORS
-// ==========================================
-
 var frontendOrigins =
     (Environment.GetEnvironmentVariable("FRONTEND_ORIGINS") ?? "")
     .Split(
@@ -130,15 +123,13 @@ builder.Services.AddCors(options =>
             policy
                 .WithOrigins(frontendOrigins.Distinct().ToArray())
                 .AllowAnyHeader()
-                .AllowAnyMethod();
+                .AllowAnyMethod()
+                .WithExposedHeaders("Retry-After");
         }
     });
 });
 
-// ==========================================
 // CONTROLLERS & SWAGGER
-// ==========================================
-
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
@@ -167,7 +158,6 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 // ASP.NET CORE IDENTITY
-
 builder.Services
     .AddIdentity<ApplicationUser, IdentityRole>(options =>
     {
@@ -179,7 +169,6 @@ builder.Services
     .AddDefaultTokenProviders();
 
 // JWT AUTHENTICATION
-
 var jwtKey = builder.Configuration["Jwt:Key"];
 
 var jwtIssuer =
@@ -240,17 +229,11 @@ builder.Services
             };
     });
 
-
 builder.Services.AddAutoMapper(
     cfg => { },
     AppDomain.CurrentDomain.GetAssemblies());
 
-
-
-// ==========================================
 // REPOSITORIES
-// ==========================================
-
 builder.Services.AddScoped(typeof(IBaseRepository<>), typeof(BaseRepository<>));
 
 builder.Services.AddScoped<IBasketRepository, BasketRepository>();
@@ -268,6 +251,8 @@ builder.Services.AddScoped<IReservationService, ReservationService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IReportService, ReportService>();
+builder.Services.AddScoped<IStaffPinHasher, StaffPinHasher>();
+builder.Services.AddScoped<IStaffPinService, StaffPinService>();
 
 builder.Services.AddScoped<IRestaurantService, RestaurantService>();
 builder.Services.AddScoped<ICurrentRestaurantService, CurrentRestaurantService>();
@@ -276,8 +261,35 @@ builder.Services.AddScoped<IStaffService, StaffService>();
 
 builder.Services.AddScoped<IOrganizationBillingService, OrganizationBillingService>();
 
-var app = builder.Build();
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("staff-pin-management", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: context.User.FindFirstValue(ClaimTypes.NameIdentifier)
+                ?? context.Connection.RemoteIpAddress?.ToString()
+                ?? "anonymous",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(5),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
 
+    options.OnRejected = (context, _) =>
+    {
+        if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+        {
+            context.HttpContext.Response.Headers.RetryAfter =
+                Math.Ceiling(retryAfter.TotalSeconds).ToString(CultureInfo.InvariantCulture);
+        }
+
+        return ValueTask.CompletedTask;
+    };
+});
+
+var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
 {
@@ -291,18 +303,14 @@ using (var scope = app.Services.CreateScope())
     await DataSeeder.SeedRolesAndAdminAsync(services);
 }
 
-
 app.UseSwagger();
 app.UseSwaggerUI();
 
-
-
+app.UseRouting();
 app.UseCors("RestaurantOS");
-
 app.UseAuthentication();
 app.UseAuthorization();
-
-
+app.UseRateLimiter();
 
 app.MapGet(
     "/",
@@ -313,6 +321,5 @@ app.MapGet(
     () => Results.Ok(new { status = "ok" }));
 
 app.MapControllers();
-
 
 app.Run();

@@ -20,7 +20,6 @@ public class PaymentsController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(UserId)) return Unauthorized();
         try { return await action(); }
-        // A browser AbortController may cancel requests during a restaurant switch.
         catch (OperationCanceledException) when (HttpContext.RequestAborted.IsCancellationRequested)
         {
             return new EmptyResult();
@@ -30,7 +29,6 @@ public class PaymentsController : ControllerBase
         catch (InvalidOperationException ex) { return Conflict(ex.Message); }
     }
 
-    // Records already-collected cash / external terminal payments; NOT an online charge.
     [HttpPost]
     public Task<IActionResult> ProcessPayment(Guid restaurantId, [FromBody] CreatePaymentDTO dto, CancellationToken ct) =>
         Handle(async () => Ok(await _payments.ProcessPaymentAsync(restaurantId, UserId, dto, ct)));

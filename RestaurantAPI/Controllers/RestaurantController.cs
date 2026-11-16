@@ -97,9 +97,16 @@ namespace RestaurantAPI.Controllers
             var userId = _userManager.GetUserId(User);
             if (string.IsNullOrWhiteSpace(userId)) return Unauthorized();
 
-            var restaurant = await _restaurantService.UpdateAsync(
-                id, dto, userId, cancellationToken);
-            return Ok(restaurant);
+            try
+            {
+                var restaurant = await _restaurantService.UpdateAsync(
+                    id, dto, userId, cancellationToken);
+                return Ok(restaurant);
+            }
+            catch (ArgumentException ex) { return BadRequest(ex.Message); }
+            catch (KeyNotFoundException) { return NotFound(); }
+            catch (UnauthorizedAccessException) { return Forbid(); }
+            catch (InvalidOperationException ex) { return Conflict(ex.Message); }
         }
     }
 }

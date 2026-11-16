@@ -21,6 +21,11 @@ namespace RestaurantDATA.DB_Context
         public DbSet<Organization> Organizations => Set<Organization>();
         public DbSet<SubscriptionPlan> SubscriptionPlans => Set<SubscriptionPlan>();
         public DbSet<Subscription> Subscriptions => Set<Subscription>();
+        public DbSet<StaffPinCredential> StaffPinCredentials => Set<StaffPinCredential>();
+
+        public DbSet<StaffDeviceSession> StaffDeviceSessions=> Set<StaffDeviceSession>();
+
+        public DbSet<StaffSecurityAuditEvent> StaffSecurityAuditEvents => Set<StaffSecurityAuditEvent>();
         // NEW
         public DbSet<StaffInvitation> StaffInvitations => Set<StaffInvitation>();
 

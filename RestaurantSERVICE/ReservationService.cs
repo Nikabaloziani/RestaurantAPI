@@ -36,6 +36,7 @@ public sealed class ReservationService : IReservationService
         if (error != null)
             return ServiceResult<List<TableDTO>>.Fail(ServiceErrorType.Validation, error);
 
+        startTime = startTime.ToUniversalTime();
         var end = startTime.AddMinutes(durationMinutes);
         var tables = await _db.Tables.AsNoTracking()
             .Where(t => t.RestaurantId == restaurantId && t.IsActive && !t.IsDeleted &&
@@ -75,13 +76,14 @@ public sealed class ReservationService : IReservationService
         if (table.Capacity < dto.GuestCount)
             return Fail(ServiceErrorType.Validation, "Guest count exceeds table capacity.");
 
+        var startTime = dto.StartTime.ToUniversalTime();
         var booking = new Reservation
         {
             RestaurantId = restaurantId, // Mandatory tenant ownership.
             TableId = table.Id,
             UserId = userId,
-            StartTime = dto.StartTime,
-            EndTime = dto.StartTime.AddMinutes(dto.DurationMinutes),
+            StartTime = startTime,
+            EndTime = startTime.AddMinutes(dto.DurationMinutes),
             GuestCount = dto.GuestCount,
             Note = string.IsNullOrWhiteSpace(dto.Note) ? null : dto.Note.Trim(),
             GuestName = isStaff ? dto.GuestName?.Trim() : null,
@@ -114,6 +116,8 @@ public sealed class ReservationService : IReservationService
         Guid restaurantId, DateTimeOffset? fromTime,
         DateTimeOffset? toTime, CancellationToken ct = default)
     {
+        fromTime = fromTime?.ToUniversalTime();
+        toTime = toTime?.ToUniversalTime();
         var query = ScopedReservations(restaurantId).AsNoTracking();
         if (fromTime.HasValue) query = query.Where(r => r.EndTime > fromTime.Value);
         if (toTime.HasValue) query = query.Where(r => r.StartTime < toTime.Value);
@@ -177,17 +181,18 @@ public sealed class ReservationService : IReservationService
         if (table.Capacity < dto.GuestCount)
             return Fail(ServiceErrorType.Validation, "Guest count exceeds table capacity.");
 
-        var endTime = dto.StartTime.AddMinutes(dto.DurationMinutes);
+        var startTime = dto.StartTime.ToUniversalTime();
+        var endTime = startTime.AddMinutes(dto.DurationMinutes);
         var overlap = await _db.Reservations.AsNoTracking().AnyAsync(r =>
             r.Id != id && r.RestaurantId == restaurantId && r.TableId == dto.TableId &&
             r.Status == ReservationStatus.Confirmed &&
-            r.StartTime < endTime && r.EndTime > dto.StartTime, ct);
+            r.StartTime < endTime && r.EndTime > startTime, ct);
         if (overlap)
             return Fail(ServiceErrorType.Conflict, "Table is already reserved for the selected time.");
 
         record.TableId = table.Id;
         record.Table = table;
-        record.StartTime = dto.StartTime;
+        record.StartTime = startTime;
         record.EndTime = endTime;
         record.GuestCount = dto.GuestCount;
         record.Note = string.IsNullOrWhiteSpace(dto.Note) ? null : dto.Note.Trim();

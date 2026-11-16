@@ -19,7 +19,6 @@ public class OrdersController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(UserId)) return Unauthorized();
         try { return await action(); }
-        // A browser AbortController may cancel requests during a restaurant switch.
         catch (OperationCanceledException) when (HttpContext.RequestAborted.IsCancellationRequested)
         {
             return new EmptyResult();

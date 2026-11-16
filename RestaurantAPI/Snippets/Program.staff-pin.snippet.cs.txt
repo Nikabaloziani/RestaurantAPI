@@ -1,0 +1,44 @@
+// ==== ADD TO Program.cs (BEFORE builder.Build()) ====
+// Existing ASP.NET Identity registration in Program.cs stays unchanged.
+using Microsoft.AspNetCore.RateLimiting;
+using System.Threading.RateLimiting;
+using System.Security.Claims;
+
+builder.Services.AddScoped<IStaffPinHasher, StaffPinHasher>();
+builder.Services.AddScoped<IStaffPinService, StaffPinService>();
+
+// Only one registration of AddRateLimiter should exist. If you already
+// have one, merge this policy into the existing configuration.
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("staff-pin-management", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: context.User.FindFirstValue(ClaimTypes.NameIdentifier)
+                ?? context.Connection.RemoteIpAddress?.ToString()
+                ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(5),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+});
+
+// ==== MIDDLEWARE ORDER (AFTER builder.Build()) ====
+// If app.UseRouting() is absent in your Program.cs, explicitly add it.
+// app.UseRouting();
+// app.UseCors("RestaurantOS");
+// app.UseAuthentication();
+// app.UseRateLimiter();
+// app.UseAuthorization();
+// app.MapControllers();
+
+// ==== CONFIGURATION ====
+// Set StaffPin__PepperV1 in User Secrets (development) and deployment
+// secret manager (production). Use Base64 of 32+ random bytes.
+// DO NOT commit the secret to Git or include it in VITE_ variables.
+// PowerShell, from local machine:
+// $p = [Convert]::ToBase64String([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
+// dotnet user-secrets set "StaffPin:PepperV1" "$p" --project RestaurantAPI

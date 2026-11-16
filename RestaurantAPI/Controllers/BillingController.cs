@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using RestaurantDATA.Entities;
 using RestaurantSERVICE.DTO.Billing;
 using RestaurantSERVICE.Interfaces;
@@ -41,7 +42,12 @@ public sealed class BillingController : ControllerBase
         }
         catch (ArgumentException ex) { return BadRequest(ex.Message); }
         catch (InvalidOperationException ex) { return Conflict(ex.Message); }
-        catch (DbUpdateException) { return Conflict("An organization already exists for this user."); }
+        catch (DbUpdateException ex) when
+            (ex.InnerException is PostgresException pg &&
+             pg.SqlState == PostgresErrorCodes.UniqueViolation)
+        {
+            return Conflict("An organization already exists for this user.");
+        }
     }
 
     [Authorize]
@@ -78,7 +84,16 @@ public sealed class BillingController : ControllerBase
         }
         catch (KeyNotFoundException) { return NotFound(); }
         catch (InvalidOperationException ex) { return Conflict(ex.Message); }
-        // A PostgreSQL serialization failure returns an error rather than
-        // bypassing a location limit. Client can retry safely.
+        catch (DbUpdateException ex) when
+            (ex.InnerException is PostgresException pg &&
+             pg.SqlState == PostgresErrorCodes.SerializationFailure)
+        {
+            return Conflict("Concurrent change detected. Retry your request.");
+        }
+        catch (PostgresException ex) when
+            (ex.SqlState == PostgresErrorCodes.SerializationFailure)
+        {
+            return Conflict("Concurrent change detected. Retry your request.");
+        }
     }
 }

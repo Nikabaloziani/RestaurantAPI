@@ -72,8 +72,10 @@ public class ReportService : IReportService
     {
         await EnsureAsync(restaurantId, userId, ct);
         if (endDate < startDate) throw new ArgumentException("endDate must be after startDate.");
+        var startUtc = startDate.UtcDateTime;
+        var endUtc = endDate.UtcDateTime;
         return await Completed(restaurantId)
-            .Where(p => p.PaymentDate >= startDate && p.PaymentDate <= endDate)
+            .Where(p => p.PaymentDate >= startUtc && p.PaymentDate <= endUtc)
             .SumAsync(p => (decimal?)p.Amount, ct) ?? 0m;
     }
 }

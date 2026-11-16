@@ -578,6 +578,59 @@ namespace RestaurantDATA.Migrations
                     b.ToTable("RestaurantUsers");
                 });
 
+            modelBuilder.Entity("RestaurantDATA.Entities.StaffDeviceSession", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("LastSeenAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("RefreshTokenHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<Guid>("RestaurantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("TrustedStaffDeviceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("character varying(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.HasIndex("RefreshTokenHash")
+                        .IsUnique();
+
+                    b.HasIndex("RestaurantId");
+
+                    b.HasIndex("TrustedStaffDeviceId", "ExpiresAt");
+
+                    b.HasIndex("UserId", "RevokedAt");
+
+                    b.ToTable("StaffDeviceSessions", (string)null);
+                });
+
             modelBuilder.Entity("RestaurantDATA.Entities.StaffInvitation", b =>
                 {
                     b.Property<Guid>("Id")
@@ -634,6 +687,99 @@ namespace RestaurantDATA.Migrations
                     b.HasIndex("RestaurantId", "NormalizedEmail");
 
                     b.ToTable("StaffInvitations", (string)null);
+                });
+
+            modelBuilder.Entity("RestaurantDATA.Entities.StaffPinCredential", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("FailedAttemptCount")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset?>("LastUsedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("LockedUntil")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("PepperKeyVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("PinHash")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("character varying(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("OrganizationId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("StaffPinCredentials", (string)null);
+                });
+
+            modelBuilder.Entity("RestaurantDATA.Entities.StaffSecurityAuditEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<string>("ActorUserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("character varying(450)");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Outcome")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<Guid?>("RestaurantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("TrustedStaffDeviceId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RestaurantId");
+
+                    b.HasIndex("OrganizationId", "OccurredAt");
+
+                    b.HasIndex("TrustedStaffDeviceId", "OccurredAt");
+
+                    b.ToTable("StaffSecurityAuditEvents", (string)null);
                 });
 
             modelBuilder.Entity("RestaurantDATA.Entities.Subscription", b =>
@@ -820,6 +966,59 @@ namespace RestaurantDATA.Migrations
                     b.HasIndex("RestaurantId");
 
                     b.ToTable("Tables", (string)null);
+                });
+
+            modelBuilder.Entity("RestaurantDATA.Entities.TrustedStaffDevice", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CredentialHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("EnrolledByUserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("character varying(450)");
+
+                    b.Property<DateTimeOffset?>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("LastSeenAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("RestaurantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CredentialHash")
+                        .IsUnique();
+
+                    b.HasIndex("EnrolledByUserId");
+
+                    b.HasIndex("RestaurantId");
+
+                    b.HasIndex("OrganizationId", "RestaurantId");
+
+                    b.ToTable("TrustedStaffDevices", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -1037,6 +1236,33 @@ namespace RestaurantDATA.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("RestaurantDATA.Entities.StaffDeviceSession", b =>
+                {
+                    b.HasOne("RestaurantDATA.Entities.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("RestaurantDATA.Entities.Restaurant", null)
+                        .WithMany()
+                        .HasForeignKey("RestaurantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("RestaurantDATA.Entities.TrustedStaffDevice", null)
+                        .WithMany()
+                        .HasForeignKey("TrustedStaffDeviceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("RestaurantDATA.Entities.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("RestaurantDATA.Entities.StaffInvitation", b =>
                 {
                     b.HasOne("RestaurantDATA.Entities.Restaurant", "Restaurant")
@@ -1046,6 +1272,35 @@ namespace RestaurantDATA.Migrations
                         .IsRequired();
 
                     b.Navigation("Restaurant");
+                });
+
+            modelBuilder.Entity("RestaurantDATA.Entities.StaffPinCredential", b =>
+                {
+                    b.HasOne("RestaurantDATA.Entities.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("RestaurantDATA.Entities.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("RestaurantDATA.Entities.StaffSecurityAuditEvent", b =>
+                {
+                    b.HasOne("RestaurantDATA.Entities.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("RestaurantDATA.Entities.Restaurant", null)
+                        .WithMany()
+                        .HasForeignKey("RestaurantId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("RestaurantDATA.Entities.Subscription", b =>
@@ -1075,6 +1330,27 @@ namespace RestaurantDATA.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Restaurant");
+                });
+
+            modelBuilder.Entity("RestaurantDATA.Entities.TrustedStaffDevice", b =>
+                {
+                    b.HasOne("RestaurantDATA.Entities.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("EnrolledByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("RestaurantDATA.Entities.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("RestaurantDATA.Entities.Restaurant", null)
+                        .WithMany()
+                        .HasForeignKey("RestaurantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("RestaurantDATA.Entities.Category", b =>

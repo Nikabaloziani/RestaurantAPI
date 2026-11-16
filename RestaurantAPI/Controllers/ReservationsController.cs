@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using RestaurantDATA.DB_Context;
 using RestaurantDATA.Enum;
 using RestaurantSERVICE.DTO.Common;
@@ -13,7 +14,6 @@ namespace RestaurantAPI.Controllers;
 
 [ApiController]
 [Authorize]
-// The old /api/Reservations route must NOT remain active: it was global.
 [Route("api/restaurants/{restaurantId:guid}/reservations")]
 public sealed class ReservationsController : ControllerBase
 {
@@ -28,7 +28,6 @@ public sealed class ReservationsController : ControllerBase
 
     private string? CurrentUserId => User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-    // Restaurant membership, NOT ASP.NET Identity's global Admin/Waiter roles.
     private Task<bool> IsReservationStaffAsync(Guid restaurantId, string userId, CancellationToken ct) =>
         _db.RestaurantUsers.AsNoTracking().AnyAsync(ru =>
             ru.RestaurantId == restaurantId && ru.UserId == userId &&
@@ -91,7 +90,8 @@ public sealed class ReservationsController : ControllerBase
         var userId = CurrentUserId;
         if (string.IsNullOrWhiteSpace(userId)) return Unauthorized();
         var isStaff = await IsReservationStaffAsync(restaurantId, userId, ct);
-        var result = await _service.CreateAsync(restaurantId, userId, dto, isStaff, ct);
+        var result = await ResolveWriteConflictAsync(
+            () => _service.CreateAsync(restaurantId, userId, dto, isStaff, ct));
         if (!result.IsSuccess) return Error(result);
         return CreatedAtAction(nameof(GetById),
             new { restaurantId, id = result.Data!.Id }, result.Data);
@@ -104,7 +104,8 @@ public sealed class ReservationsController : ControllerBase
         var userId = CurrentUserId;
         if (string.IsNullOrWhiteSpace(userId)) return Unauthorized();
         var isStaff = await IsReservationStaffAsync(restaurantId, userId, ct);
-        var result = await _service.UpdateAsync(restaurantId, id, userId, dto, isStaff, ct);
+        var result = await ResolveWriteConflictAsync(
+            () => _service.UpdateAsync(restaurantId, id, userId, dto, isStaff, ct));
         return result.IsSuccess ? Ok(result.Data) : Error(result);
     }
 
@@ -116,6 +117,21 @@ public sealed class ReservationsController : ControllerBase
         var isStaff = await IsReservationStaffAsync(restaurantId, userId, ct);
         var result = await _service.CancelAsync(restaurantId, id, userId, isStaff, ct);
         return result.IsSuccess ? Ok(result.Data) : Error(result);
+    }
+
+    private static async Task<ServiceResult<ReservationDTO>> ResolveWriteConflictAsync(
+        Func<Task<ServiceResult<ReservationDTO>>> operation)
+    {
+        try
+        {
+            return await operation();
+        }
+        catch (Exception ex) when (ex.GetBaseException() is PostgresException
+            { SqlState: PostgresErrorCodes.SerializationFailure or PostgresErrorCodes.DeadlockDetected })
+        {
+            return ServiceResult<ReservationDTO>.Fail(ServiceErrorType.Conflict,
+                "Another reservation changed at the same time. Refresh availability and try again.");
+        }
     }
 
     private IActionResult Error<T>(ServiceResult<T> result)
